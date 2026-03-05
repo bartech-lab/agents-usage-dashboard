@@ -1,6 +1,6 @@
 # Agents Usage Monitor
 
-Lightweight Go dashboard for monitoring AI assistant usage across **Kimi Code**, **Z-AI**, **OpenAI Codex**, and **Claude**.
+Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**, **Z-AI**, **OpenAI Codex**, and **Claude**.
 
 ![Dashboard](docs/screenshot.png)
 
@@ -23,7 +23,7 @@ Lightweight Go dashboard for monitoring AI assistant usage across **Kimi Code**,
 ### Installation
 
 ```bash
-# Clone and build
+# Clone and build (creates self-contained ~15MB binary)
 git clone https://github.com/konradozog-debug/AgentsUsageDashboard.git
 cd AgentsUsageDashboard
 go build -o agents-dashboard

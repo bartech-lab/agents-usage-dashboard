@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agents Usage Monitor - Screenshot Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ok: #22c55e; --ok-bg: rgba(34,197,94,0.12);
+  --warn: #f59e0b; --warn-bg: rgba(245,158,11,0.12);
+  --crit: #ef4444; --crit-bg: rgba(239,68,68,0.12);
+  --off: #6b7280; --off-bg: rgba(107,114,128,0.12);
+  --stale: #8b5cf6; --stale-bg: rgba(139,92,246,0.12);
+  
+  --kimi: #f97316; --kimi-m: rgba(249,115,22,0.15); --kimi-d: rgba(249,115,22,0.3);
+  --zai: #a855f7; --zai-m: rgba(168,85,247,0.15); --zai-d: rgba(168,85,247,0.3);
+  --codex: #06b6d4; --codex-m: rgba(6,182,212,0.15); --codex-d: rgba(6,182,212,0.3);
+  --claude: #d4a06e; --claude-m: rgba(212,160,110,0.15); --claude-d: rgba(212,160,110,0.3);
+  
+  --base: #0c0e12; --card: #13161c; --card-h: #181c24;
+  --elevated: #1e2330; --bar-track: #1a1e28;
+  --border: rgba(255,255,255,0.06); --border-s: rgba(255,255,255,0.03);
+  
+  --t1: #e8eaed; --t2: #9ca3af; --t3: #6b7280; --t4: #4b5563;
+  --mono: 'JetBrains Mono','SF Mono','Fira Code',monospace;
+  --body: 'DM Sans','Helvetica Neue',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased}
+body{min-height:100vh;background:var(--base);color:var(--t1);font-family:var(--body);padding:24px}
+
+.bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);
+  background-size:48px 48px}
+
+.container{position:relative;z-index:1;max-width:1120px;margin:0 auto}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:24px 0 20px;
+  border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px}
+.hdr-left{display:flex;align-items:center;gap:16px}
+.logo{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,rgba(6,182,212,.3),rgba(168,85,247,.3));
+  border:1px solid var(--border);font-family:var(--mono);font-size:14px;font-weight:700;color:var(--t2)}
+h1{font-family:var(--body);font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.hdr-right{display:flex;align-items:center;gap:20px}
+.last-ts{font-family:var(--mono);font-size:10px;color:var(--t4)}
+.refresh-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card);color:var(--t2);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:14px;transition:all .2s}
+
+.agents-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;margin-top:24px}
+.a-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  min-width:0;transition:all .2s}
+.a-card:hover{background:var(--card-h)}
+.a-accent{height:2px}
+.a-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px}
+.a-name{display:flex;align-items:center;gap:10px}
+.a-name-text{font-family:var(--body);font-size:16px;font-weight:600}
+.a-badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:3px 8px;border-radius:4px;
+  letter-spacing:.04em;text-transform:uppercase}
+.a-body{padding:0 20px 8px}
+.a-footer{padding:10px 20px 14px;border-top:1px solid var(--border-s);font-family:var(--mono);font-size:11px;color:var(--t3)}
+
+.u-bar{margin-bottom:14px}
+.u-bar-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.u-bar-label{font-family:var(--body);font-size:12px;color:var(--t2);letter-spacing:.02em;text-transform:uppercase}
+.u-bar-pct{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.02em}
+.u-bar-reset{font-family:var(--mono);font-size:10px;color:var(--t3)}
+.u-track{width:100%;height:6px;border-radius:3px;background:var(--bar-track);overflow:hidden}
+.u-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.16,1,.3,1)}
+
+.dot{display:inline-block;border-radius:50%;flex-shrink:0}
+.dot-md{width:14px;height:14px}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="container">
+  <header>
+    <div class="hdr-left">
+      <div class="logo">⟡</div>
+      <div>
+        <h1>Agents Usage Monitor</h1>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="last-ts">Next refresh in 4:23</span>
+        <button class="refresh-btn">
+          <span>↻</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="agents-grid">
+      <!-- Kimi -->
+      <div class="a-card">
+        <div class="a-accent" style="background:var(--kimi);opacity:0.6"></div>
+        <div class="a-header">
+          <div class="a-name">
+            <span class="dot dot-md" style="background:var(--kimi);box-shadow:0 0 14px var(--kimi)40;animation:pulse 2s ease-in-out infinite"></span>
+            <span class="a-name-text">Kimi</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--ok)">✓</span>
+          </div>
+          <span class="a-badge" style="color:var(--kimi);background:var(--kimi-m)">Moderato</span>
+        </div>
+        <div class="a-body">
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Session usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">5%</span>
+              <span class="u-bar-reset">refresh at Mar 6 01:31</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:5%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Weekly usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">12%</span>
+              <span class="u-bar-reset">refresh at Mar 10 16:31</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:12%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Z-AI -->
+      <div class="a-card">
+        <div class="a-accent" style="background:var(--zai);opacity:0.6"></div>
+        <div class="a-header">
+          <div class="a-name">
+            <span class="dot dot-md" style="background:var(--zai);box-shadow:0 0 14px var(--zai)40;animation:pulse 2s ease-in-out infinite"></span>
+            <span class="a-name-text">Z</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--ok)">✓</span>
+          </div>
+          <span class="a-badge" style="color:var(--zai);background:var(--zai-m)">pro</span>
+        </div>
+        <div class="a-body">
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Session usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">15%</span>
+              <span class="u-bar-reset">refresh at Mar 6 03:44</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:15%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Weekly usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">8%</span>
+              <span class="u-bar-reset">refresh at Mar 12 09:15</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:8%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Codex -->
+      <div class="a-card">
+        <div class="a-accent" style="background:var(--codex);opacity:0.6"></div>
+        <div class="a-header">
+          <div class="a-name">
+            <span class="dot dot-md" style="background:var(--codex);box-shadow:0 0 14px var(--codex)40;animation:pulse 2s ease-in-out infinite"></span>
+            <span class="a-name-text">Codex</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--ok)">✓</span>
+          </div>
+          <span class="a-badge" style="color:var(--codex);background:var(--codex-m)">plus</span>
+        </div>
+        <div class="a-body">
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Session usage</span>
+              <span class="u-bar-pct" style="color:var(--warn)">45%</span>
+              <span class="u-bar-reset">refresh at Mar 6 02:18</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:45%;background:var(--warn);box-shadow:0 0 8px var(--warn)30"></div>
+            </div>
+          </div>
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Weekly usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">23%</span>
+              <span class="u-bar-reset">refresh at Mar 9 14:45</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:23%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Claude -->
+      <div class="a-card">
+        <div class="a-accent" style="background:var(--claude);opacity:0.6"></div>
+        <div class="a-header">
+          <div class="a-name">
+            <span class="dot dot-md" style="background:var(--claude);box-shadow:0 0 14px var(--claude)40;animation:pulse 2s ease-in-out infinite"></span>
+            <span class="a-name-text">Claude</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--ok)">✓</span>
+          </div>
+          <span class="a-badge" style="color:var(--claude);background:var(--claude-m)">pro</span>
+        </div>
+        <div class="a-body">
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Session usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">18%</span>
+              <span class="u-bar-reset">refresh at Mar 6 04:02</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:18%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+          <div class="u-bar">
+            <div class="u-bar-top">
+              <span class="u-bar-label">Weekly usage</span>
+              <span class="u-bar-pct" style="color:var(--ok)">25%</span>
+              <span class="u-bar-reset">refresh at Mar 11 19:30</span>
+            </div>
+            <div class="u-track">
+              <div class="u-fill" style="width:25%;background:var(--ok);box-shadow:0 0 8px var(--ok)30"></div>
+            </div>
+          </div>
+        </div>
+        <div class="a-footer">⬡ Sonnet 15% · Opus 10%</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<style>
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</body>
+</html>
