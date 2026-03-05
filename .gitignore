@@ -1,7 +1,19 @@
 # Environment
 .env
+config.yaml
 
-# Python
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+agents-dashboard
+
+# Python (legacy)
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -26,10 +38,5 @@ venv/
 Thumbs.db
 desktop.ini
 
-# Claude Code
-.claude/
-
-# Project-specific
+# Build artifacts
 *.zip
-streamdeck-agent-usage/
-node_modules/

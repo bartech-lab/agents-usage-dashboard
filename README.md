@@ -1,128 +1,316 @@
-# Agent Stats
+# Agent Usage Dashboard (Go Version)
 
-Self-hosted dashboard for monitoring usage limits across AI coding assistants: **OpenAI Codex**, **Kimi Code**, **Claude**, and **Z-AI**.
-
-A Docker stack with two containers: a Firefox browser (noVNC) that keeps your sessions alive, and a Python backend that reads cookies from Firefox, queries each service's API, and serves a real-time dashboard.
+Lightweight Go binary for monitoring AI assistant usage limits across **OpenAI Codex**, **Kimi Code**, **Claude**, and **Z-AI**.
 
 ![Dashboard](docs/screenshot.png)
 
 ## Features
 
 - Unified view of session and weekly usage across 4 AI assistants
-- Automatic cookie-based authentication (no manual token management)
-- Real-time usage bars with color-coded thresholds (ok / warning / critical)
-- Stale data detection — shows last known data when a service is unreachable
+- Single binary, no Docker required (~15MB)
+- YAML configuration with cookie/token auth
+- Real-time dashboard with background polling
+- Color-coded usage bars (ok / warning / critical)
+- Stale data detection when services are unreachable
 - Codex daily usage chart (last 14 days)
-- Dark theme, zero JavaScript frameworks, single-file frontend
-- Background polling with configurable refresh interval
+- Dark theme, zero JavaScript frameworks
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Docker Host                                              │
+│  Dashboard Binary (Go)                                    │
 │                                                           │
-│  ┌─────────────┐    shared volume     ┌────────────────┐  │
-│  │   Firefox    │   firefox_data      │   Dashboard     │  │
-│  │  (noVNC)     │──────────────────→  │  (Python/Flask) │  │
-│  │  :5800       │   cookies.sqlite    │  :8777          │  │
-│  └─────────────┘                      └───────┬────────┘  │
+│  ┌─────────────┐    config.yaml     ┌─────────────────┐  │
+│  │   Config     │   cookies/tokens   │   HTTP Client    │  │
+│  │   Loader     │──────────────────→│   (tls-client)   │  │
+│  └─────────────┘                    └────────┬────────┘  │
 │        ↑                                      │           │
-│   user logs in                                ↓           │
-│   to services                          External APIs      │
-│                                     chatgpt.com, kimi.com │
-│                                     claude.ai, z.ai       │
+│        │                                      ↓           │
+│        │                               External APIs      │
+│        │                            chatgpt.com, kimi.com │
+│        │                            claude.ai, z.ai       │
+│        │                                      │           │
+│        └──────────────────────────────────────┘           │
+│                    Scheduler (background)                 │
+│                                                           │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │  HTTP Server :8777                                   │  │
+│  │  - /          → Dashboard UI                         │  │
+│  │  - /api/data  → JSON API                             │  │
+│  │  - /api/refresh → Force refresh                      │  │
+│  └─────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────┘
 ```
 
-See [docs/architecture.md](docs/architecture.md) for details.
-
-## Quick Start
+## Installation
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- (Optional) Z-AI API key — see [Configuration](#configuration)
+- Go 1.24+ (for building from source)
+- Or download pre-built binary from releases
 
-### Setup
+### Build from Source
 
 ```bash
 # Clone the repository
 git clone https://github.com/konradozog-debug/AgentsUsageDashboard.git
-cd AgentsUsageDashboard
+cd AgentsUsageDashboard/go-rewrite
 
-# Copy and edit environment variables
-cp .env.example .env
-# Edit .env if you want Z-AI monitoring (add your API key)
+# Build the binary
+go build -o agents-dashboard
 
-# Build and start
-docker compose up -d --build
+# Or build with version info
+go build -ldflags "-s -w" -o agents-dashboard
 ```
 
-### First Run
+### Download Pre-built Binary
 
-1. Open **http://localhost:5800** — this is the Firefox browser GUI (noVNC)
-2. Log in to the services you want to monitor:
-   - [chatgpt.com](https://chatgpt.com) (for Codex)
-   - [kimi.com](https://kimi.com) (for Kimi Code)
-   - [claude.ai](https://claude.ai) (for Claude)
-3. Open **http://localhost:8777** — the dashboard will start showing data within 5 minutes
-
-That's it. Firefox keeps the sessions alive, and the dashboard reads cookies automatically.
+Check the [releases page](https://github.com/konradozog-debug/AgentsUsageDashboard/releases) for pre-built binaries.
 
 ## Configuration
 
-All configuration is via environment variables in `.env` (or `docker-compose.yml`):
+1. Copy the example configuration:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ZAI_API_KEY` | _(empty)_ | Z-AI API key in `id.secret` format ([get one here](https://z.ai/manage-apikey/apikey-list)) |
-| `REFRESH_INTERVAL` | `300` | Data refresh interval in seconds |
-| `DEBUG` | `false` | Enable `/api/cookies` debug endpoint |
-| `TZ` | `Europe/Warsaw` | Timezone for timestamps |
+```bash
+cp config.yaml.example config.yaml
+```
+
+2. Edit `config.yaml` with your credentials. See [Cookie Extraction](#cookie-extraction) below for details on obtaining cookies.
+
+### Minimal Configuration (Z-AI only)
+
+```yaml
+refresh_interval: 5m
+server_port: 8777
+providers:
+  zai:
+    api_key: "your-api-key-id.secret"
+```
+
+### Full Configuration Example
+
+```yaml
+refresh_interval: 5m
+server_port: 8777
+providers:
+  codex:
+    cookies:
+      "chatgpt.com":
+        "__Secure-next-auth.session-token": "your-session-token"
+  kimi:
+    cookies:
+      "kimi.com":
+        "kimi-auth": "your-kimi-auth-token"
+  claude:
+    cookies:
+      "claude.ai":
+        "sessionKey": "your-session-key"
+  zai:
+    api_key: "your-api-key-id.secret"
+```
+
+## Cookie Extraction
+
+Cookie-based authentication requires you to extract cookies from your browser after logging into each service.
+
+### Chrome/Edge
+
+1. Log in to the service you want to monitor (chatgpt.com, kimi.com, or claude.ai)
+2. Open Developer Tools (F12 or Ctrl+Shift+I)
+3. Go to Application tab → Cookies
+4. Select the domain (chatgpt.com, kimi.com, or claude.ai)
+5. Copy the required cookie values
+
+### Firefox
+
+1. Log in to the service you want to monitor
+2. Open Developer Tools (F12 or Ctrl+Shift+I)
+3. Go to Storage tab → Cookies
+4. Select the domain
+5. Copy the required cookie values
+
+### Required Cookies per Provider
+
+#### OpenAI Codex (chatgpt.com)
+
+Codex uses the standard ChatGPT authentication. You need the session cookies that are set after logging in. Common cookies include:
+
+- `__Secure-next-auth.session-token`
+- `__Secure-next-auth.callback-url`
+- Other session-related cookies
+
+Copy all cookies from chatgpt.com domain to the config. The application will use them to fetch an access token.
+
+#### Kimi Code (kimi.com)
+
+Kimi requires the `kimi-auth` cookie:
+
+- `kimi-auth`: The authentication token for Kimi Code
+
+#### Claude (claude.ai)
+
+Claude requires session cookies:
+
+- `sessionKey`: The main session identifier
+- Other session-related cookies as needed
+
+#### Z-AI (z.ai)
+
+Z-AI uses API key authentication (no cookies needed):
+
+- Format: `id.secret` (two parts separated by a dot)
+- Get your API key from [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)
+
+### Environment Variables
+
+For security, use environment variables in your `config.yaml`:
+
+```yaml
+providers:
+  codex:
+    cookies:
+      "chatgpt.com":
+        "__Secure-next-auth.session-token": "${CODEX_SESSION_TOKEN}"
+```
+
+**Option 1: `.env` file (recommended)**
+
+The binary automatically loads `.env` from the current directory on startup:
+
+```bash
+# .env file
+ZAI_API_KEY=your-id.your-secret
+CODEX_SESSION_TOKEN=your-token
+KIMI_AUTH_TOKEN=your-token
+CLAUDE_SESSION_KEY=your-key
+```
+
+Quotes are optional - both `KEY=value` and `KEY="value"` work.
+
+**Option 2: Export directly**
+
+```bash
+export CODEX_SESSION_TOKEN="your-actual-token"
+./agents-dashboard
+```
+
+## Running
+
+```bash
+./agents-dashboard
+```
+
+The server will start on http://localhost:8777
+
+### Command Line Options
+
+There are no command line options. All configuration is done via `config.yaml`.
 
 ## API Endpoints
 
-The dashboard exposes:
-
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Dashboard UI |
-| `/api/data` | GET | Current cached data (JSON) |
-| `/api/refresh` | GET | Force immediate data refresh |
-| `/api/cookies` | GET | Cookie diagnostics (requires `DEBUG=true`) |
+| `/` | GET | Dashboard UI (HTML) |
+| `/api/data` | GET | Current usage data (JSON) |
+| `/api/refresh` | GET | Force immediate refresh |
 
-For details on the external APIs used, see [docs/api-endpoints.md](docs/api-endpoints.md).
+### Example API Response
+
+```bash
+curl http://localhost:8777/api/data
+```
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "providers": {
+    "codex": {
+      "status": "ok",
+      "plan": "plus",
+      "limit_reached": false,
+      "session": {
+        "usage_pct": 45.2,
+        "reset_at": "2024-01-15T18:00:00Z",
+        "remaining_seconds": 27000
+      },
+      "weekly": {
+        "usage_pct": 23.5,
+        "reset_at": "2024-01-22T00:00:00Z",
+        "remaining_seconds": 604800
+      },
+      "daily_breakdown": [...]
+    },
+    ...
+  }
+}
+```
+
+## Resource Usage
+
+- **RAM**: ~20MB (typical)
+- **Binary size**: ~15MB
+- **No external dependencies** (single static binary)
+- **CPU**: Minimal (only polls at configured interval)
 
 ## Security Notes
 
 This dashboard is designed for **private, self-hosted use** on a trusted network.
 
-- **No authentication** — all endpoints are open. Place behind a reverse proxy with auth (e.g., Nginx + basic auth, Caddy, Authelia) or access via VPN/Tailscale if exposed beyond localhost.
-- **Port 5800** (Firefox noVNC) gives full browser access to your logged-in sessions. Never expose it to the public internet.
-- **Port 8777** shows your usage data. Restrict access as needed.
+- **No authentication** on the web interface. Place behind a reverse proxy with auth (Nginx, Caddy, Authelia) or access via VPN/Tailscale if exposed beyond localhost.
+- **Protect your config.yaml** - it contains sensitive cookies and API keys. Set file permissions to 600:
+  ```bash
+  chmod 600 config.yaml
+  ```
+- **Use environment variables** for credentials when possible
+- **Never commit config.yaml** with real credentials (it's in .gitignore)
+- Port 8777 shows your usage data. Restrict access as needed.
 
 ## Troubleshooting
 
-- **No data showing?** Open `:5800`, check you're logged in to all services
-- **Debug cookies:** Set `DEBUG=true` in `.env`, restart, check `http://localhost:8777/api/cookies`
-- **Force refresh:** Visit `http://localhost:8777/api/refresh`
-- **Z-AI not working?** Verify your API key format is `id.secret` (two parts separated by a dot)
-- **Stale data?** Session expired — re-login via Firefox GUI (`:5800`)
+### No data showing
 
-## Documentation
+1. Check your config.yaml has correct cookies/tokens
+2. Verify you can access the services in your browser
+3. Check the console output for error messages
+4. Test with `curl http://localhost:8777/api/data`
 
-- [API Endpoints](docs/api-endpoints.md) — full request/response specs for all monitored services
-- [Architecture](docs/architecture.md) — data flow diagram and component overview
-- [Cookie Flow](docs/cookie-flow.md) — how Firefox cookie reading works
-- [Design System](docs/design-system.md) — UI design tokens and component specs
+### Stale data
+
+Session expired. Re-extract fresh cookies from your browser and update config.yaml.
+
+### Z-AI not working
+
+Verify your API key format is `id.secret` (two parts separated by a dot).
+
+### Permission denied
+
+Make sure the binary has execute permissions:
+
+```bash
+chmod +x agents-dashboard
+```
+
+## Development
+
+```bash
+# Run tests
+go test ./...
+
+# Run with race detection
+go run -race .
+
+# Build optimized binary
+go build -ldflags "-s -w" -o agents-dashboard
+```
 
 ## Tech Stack
 
-- **Backend:** Python 3.12, Flask, gunicorn (gthread), curl_cffi
-- **Frontend:** Vanilla HTML/CSS/JS (single file, no build step)
-- **Infrastructure:** Docker Compose, jlesage/firefox (noVNC)
-- **Cookie reading:** SQLite (Firefox cookie/localStorage databases)
+- **Backend**: Go 1.24
+- **HTTP Client**: tls-client (Firefox fingerprinting)
+- **Auth**: JWT (Z-AI), Cookie-based (others)
+- **Frontend**: Vanilla HTML/CSS/JS (embedded)
+- **Config**: YAML with environment variable support
 
 ## Contributing
 
@@ -134,4 +322,4 @@ This dashboard is designed for **private, self-hosted use** on a trusted network
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

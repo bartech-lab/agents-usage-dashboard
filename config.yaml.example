@@ -1,0 +1,107 @@
+# Agents Usage Dashboard Configuration
+# Copy this file to config.yaml and fill in your credentials
+
+# Refresh interval for fetching agent usage data
+# Supports durations like: 30s, 5m, 1h, 24h
+# Default: 5m
+refresh_interval: 5m
+
+# Server port for the dashboard web interface
+# Default: 8777
+server_port: 8777
+
+# Provider authentication settings
+# Configure at least one provider to fetch usage data
+providers:
+
+  # Codex provider configuration (cookie-based auth)
+  # Extract cookies from chatgpt.com after logging in
+  codex:
+    cookies:
+      "chatgpt.com":
+        "__Secure-next-auth.session-token": "${CODEX_SESSION_TOKEN}"
+        # Add other session cookies as needed
+
+  # Kimi provider configuration (cookie-based auth)
+  # Requires the kimi-auth cookie from kimi.com
+  kimi:
+    cookies:
+      "kimi.com":
+        "kimi-auth": "${KIMI_AUTH_TOKEN}"
+
+  # Claude provider configuration (cookie-based auth)
+  # Extract cookies from claude.ai after logging in
+  claude:
+    cookies:
+      "claude.ai":
+        "sessionKey": "${CLAUDE_SESSION_KEY}"
+        # Add other session cookies as needed
+
+  # ZAI provider configuration (API key-based auth)
+  # Get your API key from: https://z.ai/manage-apikey/apikey-list
+  # Format: id.secret (two parts separated by a dot)
+  zai:
+    api_key: "${ZAI_API_KEY}"
+
+# Environment Variables Setup:
+# ---------------------------
+# Create a .env file or export environment variables:
+#
+#   export ZAI_API_KEY="your-id.your-secret"
+#   export CODEX_SESSION_TOKEN="your-chatgpt-session-token"
+#   export KIMI_AUTH_TOKEN="your-kimi-auth-token"
+#   export CLAUDE_SESSION_KEY="your-claude-session-key"
+#
+# Or use a .env file and load it with direnv or similar.
+
+# Cookie Extraction Guide:
+# -----------------------
+# Cookie-based providers require extracting cookies from your browser.
+#
+# Chrome/Edge:
+#   1. Log in to the service (chatgpt.com, kimi.com, or claude.ai)
+#   2. Open Developer Tools (F12)
+#   3. Go to Application tab -> Cookies
+#   4. Select the domain
+#   5. Copy cookie values to config.yaml
+#
+# Firefox:
+#   1. Log in to the service
+#   2. Open Developer Tools (F12)
+#   3. Go to Storage tab -> Cookies
+#   4. Select the domain
+#   5. Copy cookie values to config.yaml
+
+# Security Notes:
+# --------------
+# 1. Never commit config.yaml with real credentials (use .env variables)
+# 2. Set file permissions: chmod 600 config.yaml
+# 3. At least one provider must be configured
+# 4. Cookie-based providers require valid session cookies
+# 5. API keys are strongly recommended to use environment variables
+# 6. Server port must be between 1 and 65535
+# 7. Refresh interval supports: s (seconds), m (minutes), h (hours)
+
+# Minimal Configuration (ZAI only):
+# ---------------------------------
+# refresh_interval: 5m
+# server_port: 8777
+# providers:
+#   zai:
+#     api_key: "${ZAI_API_KEY}"
+
+# Example with Multiple Providers:
+# -------------------------------
+# refresh_interval: 10m
+# server_port: 8777
+# providers:
+#   zai:
+#     api_key: "${ZAI_API_KEY}"
+#   claude:
+#     cookies:
+#       "claude.ai":
+#         "sessionKey": "${CLAUDE_SESSION_KEY}"
+#   kimi:
+#     cookies:
+#       "kimi.com":
+#         "kimi-auth": "${KIMI_AUTH_TOKEN}"
