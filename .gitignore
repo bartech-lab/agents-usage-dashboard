@@ -1,6 +1,5 @@
 # Environment
 .env
-config.yaml
 
 # Go
 *.exe
