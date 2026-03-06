@@ -1,61 +1,197 @@
-# Cookie Flow
+# Authentication Guide
 
-## How Firefox Stores Cookies
+This guide explains how to extract authentication credentials for each AI assistant provider.
 
-Firefox stores cookies in a SQLite file: `cookies.sqlite` inside the profile directory.
+## Overview
 
-Path in the dashboard container (volume `firefox_data` mounted as `/firefox`):
+The Agents Usage Monitor uses two authentication methods:
+
+1. **Cookie-based authentication** - For Kimi, Codex, and Claude
+2. **API key authentication** - For Z-AI
+
+## Cookie Extraction (Chrome/Chromium)
+
+### Prerequisites
+
+- Log in to the service you want to monitor in your browser
+- Keep the browser tab open during extraction
+
+### Step-by-Step Process
+
+#### 1. Open Developer Tools
+
+**Chrome/Edge/Brave:**
+- Press `F12` or `Ctrl+Shift+I` (Windows/Linux)
+- Press `Cmd+Option+I` (macOS)
+- Or right-click → Inspect
+
+#### 2. Navigate to Cookies
+
+1. Click the **Application** tab in Developer Tools
+2. Expand **Cookies** in the left sidebar
+3. Click on the domain (e.g., `https://chatgpt.com`)
+
+#### 3. Extract Cookie Value
+
+1. Find the required cookie name (see table below)
+2. Double-click the **Value** field to select it
+3. Copy the value (`Ctrl+C` / `Cmd+C`)
+
+#### 4. Add to Configuration
+
+Add the cookie value to your `.env` file:
+
+```bash
+KIMI_AUTH_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...
 ```
-/firefox/.mozilla/firefox/<profile>/cookies.sqlite
+
+Or directly in `config.yaml`:
+
+```yaml
+providers:
+  kimi:
+    cookies:
+      "kimi.com":
+        "kimi-auth": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9..."
 ```
 
-Table: `moz_cookies` — columns: `name`, `value`, `host`, `path`, `expiry`, `lastAccessed`, etc.
+## Required Cookies by Provider
 
-## Profile Auto-Detection
+| Provider | Domain | Cookie Name | Environment Variable |
+|----------|--------|-------------|---------------------|
+| **Kimi** | kimi.com | `kimi-auth` | `KIMI_AUTH_TOKEN` |
+| **Codex** | chatgpt.com | `__Secure-next-auth.session-token` | `CODEX_SESSION_TOKEN` |
+| **Claude** | claude.ai | `sessionKey` | `CLAUDE_SESSION_KEY` |
+| **Z-AI** | z.ai | API Key (not cookie) | `ZAI_API_KEY` |
 
-Search for the profile directory in order:
-1. `*.default-release` — default profile in newer Firefox versions
-2. `*.default` — fallback
-3. First folder containing `cookies.sqlite`
+### Provider-Specific Notes
 
-## WAL Lock — Why We Copy
+#### Kimi Code (kimi.com)
 
-Firefox uses SQLite in WAL (Write-Ahead Logging) mode. The file is locked during writes. Direct reads from another process may:
-- Return incomplete data
-- Throw `database is locked`
+- **Cookie:** `kimi-auth`
+- **Format:** JWT token (long string starting with `eyJ`)
+- **Validity:** Long-lived (weeks/months)
+- **Tip:** The token is valid across sessions; no need to refresh frequently
 
-### Safe Reading Procedure
+#### OpenAI Codex (chatgpt.com)
 
-1. **Copy all three files** to `/tmp`:
-   - `cookies.sqlite`
-   - `cookies.sqlite-wal`
-   - `cookies.sqlite-shm`
+- **Primary cookie:** `__Secure-next-auth.session-token`
+- **Additional cookies:** May need `__Secure-next-auth.callback-url` and others
+- **Validity:** Session-based, expires after inactivity
+- **Tip:** Extract all cookies from chatgpt.com domain if the primary cookie doesn't work
 
-   All three are **required**. Without `-wal` and `-shm` the data may be inconsistent or empty.
+#### Claude (claude.ai)
 
-2. Use `shutil.copy2()` — preserves metadata.
+- **Cookie:** `sessionKey`
+- **Format:** UUID-like string
+- **Validity:** Session-based
+- **Tip:** Log in to claude.ai before extraction
 
-3. Read from the copy:
-   ```sql
-   SELECT name, value FROM moz_cookies
-   WHERE host LIKE '%{domain}%'
-   ORDER BY lastAccessed DESC
-   ```
+#### Z-AI (z.ai)
 
-4. Delete temp files after reading.
+- **Authentication:** API Key (not cookie-based)
+- **Format:** `id.secret` (two parts separated by a dot)
+- **Get your key:** [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)
+- **Tip:** Treat like a password - never commit to version control
 
-## Key Cookies per Service
+## Alternative Browsers
 
-| Service | Domain | Key Cookie | Usage |
-|---------|--------|------------|-------|
-| OpenAI Codex | chatgpt.com | `__Secure-next-auth.session-token` | Full cookie string → exchange for Bearer token |
-| Kimi Code | kimi.com | `kimi-auth` | Directly used as Bearer JWT |
-| Claude | claude.ai | `sessionKey` | Full cookie string + custom headers |
+The process is similar in other browsers:
 
-## What Happens When a Session Expires
+### Firefox
+1. Press `F12` → **Storage** tab → **Cookies**
+2. Find and copy the required cookie
 
-- Backend receives an auth error (401/403) from the API
-- Cache keeps the last valid data + `error` field with a message
-- Dashboard shows stale data with a visual indicator
-- User needs to open Firefox GUI (:5800) and log in again
-- Endpoint `/api/cookies` (DEBUG=true) allows checking whether cookies are present
+### Safari
+1. Enable Developer Menu: Safari → Preferences → Advanced → Show Develop menu
+2. Press `Cmd+Option+I` → **Storage** tab → **Cookies**
+3. Find and copy the required cookie
+
+## Security Best Practices
+
+### ✅ DO
+- Use environment variables (`.env` file)
+- Add `.env` and `config.yaml` to `.gitignore`
+- Set file permissions: `chmod 600 .env config.yaml`
+- Rotate credentials periodically
+- Use a password manager to store tokens
+
+### ❌ DON'T
+- Commit credentials to version control
+- Share tokens in chat/email
+- Use production tokens in development
+- Store tokens in plain text files
+
+## Troubleshooting
+
+### Cookie Expired
+**Symptom:** Provider shows "Auth failed - reconnect needed"
+
+**Solution:**
+1. Log in to the service in your browser
+2. Extract fresh cookie
+3. Update `.env` file
+4. Restart the dashboard
+
+### Invalid Cookie Format
+**Symptom:** "Cookie extraction failed" error
+
+**Solution:**
+1. Ensure you copied the entire cookie value
+2. Check for extra spaces or line breaks
+3. Verify you're copying the **Value** field, not the name
+
+### Multiple Cookies Required (Codex)
+**Symptom:** Codex authentication fails with session token alone
+
+**Solution:**
+1. Extract all cookies from chatgpt.com domain
+2. Add them to config.yaml:
+```yaml
+providers:
+  codex:
+    cookies:
+      "chatgpt.com":
+        "__Secure-next-auth.session-token": "value1"
+        "__Secure-next-auth.callback-url": "value2"
+        # Add other cookies as needed
+```
+
+### Z-AI API Key Format
+**Symptom:** "Invalid API key format"
+
+**Solution:**
+1. Ensure format is `id.secret` (exactly one dot)
+2. Example: `${ZAI_API_KEY}`
+3. Get fresh key from [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)
+
+## Environment Variable Template
+
+Use this template in your `.env` file:
+
+```bash
+# Kimi Code - Extract from kimi.com cookies
+KIMI_AUTH_TOKEN=your-kimi-jwt-token
+
+# Z-AI - Get from https://z.ai/manage-apikey/apikey-list
+ZAI_API_KEY=your-id.your-secret
+
+# OpenAI Codex - Extract from chatgpt.com cookies
+CODEX_SESSION_TOKEN=your-session-token
+
+# Claude - Extract from claude.ai cookies
+CLAUDE_SESSION_KEY=your-session-key
+```
+
+## Refresh Frequency
+
+Cookie-based authentication tokens have different lifespans:
+
+| Provider | Typical Lifetime | Refresh Recommendation |
+|----------|-----------------|----------------------|
+| Kimi | Weeks/Months | When auth fails |
+| Codex | Days/Weeks | When auth fails |
+| Claude | Days/Weeks | When auth fails |
+| Z-AI API Key | Months/Years | When revoked or rotated |
+
+The dashboard will automatically detect authentication failures and display error status, prompting you to refresh credentials.

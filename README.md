@@ -1,137 +1,220 @@
-# Agent Stats
+# Agents Usage Monitor
 
-Self-hosted dashboard for monitoring usage limits across AI coding assistants: **OpenAI Codex**, **Kimi Code**, **Claude**, and **Z-AI**.
+Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**, **Z-AI**, **OpenAI Codex**, and **Claude**.
 
-A Docker stack with two containers: a Firefox browser (noVNC) that keeps your sessions alive, and a Python backend that reads cookies from Firefox, queries each service's API, and serves a real-time dashboard.
-
-![Dashboard](docs/screenshot.png)
+**Dashboard Preview:** Open [`docs/dashboard-preview.html`](docs/dashboard-preview.html) in your browser to see what the dashboard looks like with all providers connected.
 
 ## Features
 
-- Unified view of session and weekly usage across 4 AI assistants
-- Automatic cookie-based authentication (no manual token management)
-- Real-time usage bars with color-coded thresholds (ok / warning / critical)
-- Stale data detection — shows last known data when a service is unreachable
-- Codex daily usage chart (last 14 days)
-- Dark theme, zero JavaScript frameworks, single-file frontend
-- Background polling with configurable refresh interval
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  Docker Host                                              │
-│                                                           │
-│  ┌─────────────┐    shared volume     ┌────────────────┐  │
-│  │   Firefox    │   firefox_data      │   Dashboard     │  │
-│  │  (noVNC)     │──────────────────→  │  (Python/Flask) │  │
-│  │  :5800       │   cookies.sqlite    │  :8777          │  │
-│  └─────────────┘                      └───────┬────────┘  │
-│        ↑                                      │           │
-│   user logs in                                ↓           │
-│   to services                          External APIs      │
-│                                     chatgpt.com, kimi.com │
-│                                     claude.ai, z.ai       │
-└──────────────────────────────────────────────────────────┘
-```
-
-See [docs/architecture.md](docs/architecture.md) for details.
+- **Unified usage view** - Session and weekly usage for 4 AI assistants in one place
+- **Real-time monitoring** - Robust auto-refresh with background tab support
+- **Live countdown** - Shows exactly when data will refresh next
+- **Smart refresh** - Visibility API ensures fresh data when switching tabs
+- **Single binary** - No Docker required (~15MB)
+- **Dark theme** - Clean, modern UI with color-coded usage bars
+- **Zero dependencies** - Embedded frontend, no external services
 
 ## Quick Start
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- (Optional) Z-AI API key — see [Configuration](#configuration)
+- Go 1.24+ (for building) or download pre-built binary
 
-### Setup
+### Installation
 
 ```bash
-# Clone the repository
+# Clone and build (creates self-contained ~15MB binary)
 git clone https://github.com/konradozog-debug/AgentsUsageDashboard.git
 cd AgentsUsageDashboard
+go build -o agents-dashboard
 
-# Copy and edit environment variables
+# Create config
+cp config.yaml.example config.yaml
 cp .env.example .env
-# Edit .env if you want Z-AI monitoring (add your API key)
-
-# Build and start
-docker compose up -d --build
 ```
 
-### First Run
+### Configure
 
-1. Open **http://localhost:5800** — this is the Firefox browser GUI (noVNC)
-2. Log in to the services you want to monitor:
-   - [chatgpt.com](https://chatgpt.com) (for Codex)
-   - [kimi.com](https://kimi.com) (for Kimi Code)
-   - [claude.ai](https://claude.ai) (for Claude)
-3. Open **http://localhost:8777** — the dashboard will start showing data within 5 minutes
+Edit `.env` with your credentials:
 
-That's it. Firefox keeps the sessions alive, and the dashboard reads cookies automatically.
+```bash
+# At minimum, add Z-AI API key
+ZAI_API_KEY=your-id.your-secret
+
+# Add others as needed
+KIMI_AUTH_TOKEN=your-kimi-token
+CODEX_SESSION_TOKEN=your-codex-token
+CLAUDE_SESSION_KEY=your-claude-key
+```
+
+### Run
+
+```bash
+./agents-dashboard
+```
+
+Open http://localhost:8777
 
 ## Configuration
 
-All configuration is via environment variables in `.env` (or `docker-compose.yml`):
+### Minimal (Z-AI only)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ZAI_API_KEY` | _(empty)_ | Z-AI API key in `id.secret` format ([get one here](https://z.ai/manage-apikey/apikey-list)) |
-| `REFRESH_INTERVAL` | `300` | Data refresh interval in seconds |
-| `DEBUG` | `false` | Enable `/api/cookies` debug endpoint |
-| `TZ` | `Europe/Warsaw` | Timezone for timestamps |
+```yaml
+providers:
+  zai:
+    api_key: "${ZAI_API_KEY}"
+```
+
+### Full (all providers)
+
+```yaml
+refresh_interval: 5m
+server_port: 8777
+providers:
+  kimi:
+    cookies:
+      "kimi.com":
+        "kimi-auth": "${KIMI_AUTH_TOKEN}"
+  zai:
+    api_key: "${ZAI_API_KEY}"
+  codex:
+    cookies:
+      "chatgpt.com":
+        "__Secure-next-auth.session-token": "${CODEX_SESSION_TOKEN}"
+  claude:
+    cookies:
+      "claude.ai":
+        "sessionKey": "${CLAUDE_SESSION_KEY}"
+```
+
+## Cookie Extraction
+
+Cookie-based providers require extracting cookies from your browser:
+
+**Chrome/Edge:**
+1. Log in to service (chatgpt.com, kimi.com, or claude.ai)
+2. F12 → Application → Cookies
+3. Copy required cookie values
+
+**Firefox:**
+1. Log in to service
+2. F12 → Storage → Cookies
+3. Copy required cookie values
+
+### Required Cookies
+
+| Provider | Domain | Cookie Name |
+|----------|--------|-------------|
+| **Kimi** | kimi.com | `kimi-auth` |
+| **Z-AI** | z.ai | API key (no cookie) |
+| **Codex** | chatgpt.com | `__Secure-next-auth.session-token` |
+| **Claude** | claude.ai | `sessionKey` |
+
+**Z-AI API Key:** Get from [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)  
+Format: `id.secret` (two parts separated by a dot)
+
+## Auto-Refresh System
+
+The dashboard implements a robust auto-refresh that works even in background tabs:
+
+- **Polls every minute** to check if refresh is needed
+- **Aligns with backend** - Only fetches when backend says it's time
+- **Visibility API** - Instantly refreshes when you switch back to the tab if data is stale
+- **Live countdown** - Shows "Next refresh in 4:23" in header
+- **Staleness detection** - Refreshes if data is >30 seconds old
+- **Error recovery** - Tracks consecutive errors with exponential backoff
 
 ## API Endpoints
-
-The dashboard exposes:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Dashboard UI |
-| `/api/data` | GET | Current cached data (JSON) |
-| `/api/refresh` | GET | Force immediate data refresh |
-| `/api/cookies` | GET | Cookie diagnostics (requires `DEBUG=true`) |
+| `/api/data` | GET | Current usage data (JSON) |
+| `/api/refresh` | GET | Force immediate refresh |
 
-For details on the external APIs used, see [docs/api-endpoints.md](docs/api-endpoints.md).
+## Resource Usage
 
-## Security Notes
+- **RAM**: ~20MB
+- **Binary**: ~15MB
+- **CPU**: Minimal (polls every 5 minutes)
+- **Network**: ~1 request per provider per 5 minutes
 
-This dashboard is designed for **private, self-hosted use** on a trusted network.
+## Security
 
-- **No authentication** — all endpoints are open. Place behind a reverse proxy with auth (e.g., Nginx + basic auth, Caddy, Authelia) or access via VPN/Tailscale if exposed beyond localhost.
-- **Port 5800** (Firefox noVNC) gives full browser access to your logged-in sessions. Never expose it to the public internet.
-- **Port 8777** shows your usage data. Restrict access as needed.
+**⚠️ Designed for private, trusted networks only**
+
+- **No authentication** - Place behind reverse proxy (Nginx, Caddy, Authelia) or VPN
+- **Protect config.yaml** - Contains sensitive cookies/API keys
+  ```bash
+  chmod 600 config.yaml .env
+  ```
+- **Never commit secrets** - `config.yaml` and `.env` are in `.gitignore`
 
 ## Troubleshooting
 
-- **No data showing?** Open `:5800`, check you're logged in to all services
-- **Debug cookies:** Set `DEBUG=true` in `.env`, restart, check `http://localhost:8777/api/cookies`
-- **Force refresh:** Visit `http://localhost:8777/api/refresh`
-- **Z-AI not working?** Verify your API key format is `id.secret` (two parts separated by a dot)
-- **Stale data?** Session expired — re-login via Firefox GUI (`:5800`)
+**No data showing:**
+1. Check `.env` has correct credentials
+2. Verify you can log in to services in browser
+3. Check console output for errors
+4. Test: `curl http://localhost:8777/api/data`
 
-## Documentation
+**Stale data:**
+- Session expired - re-extract cookies from browser
+- Check console for "Fetch failed" messages
 
-- [API Endpoints](docs/api-endpoints.md) — full request/response specs for all monitored services
-- [Architecture](docs/architecture.md) — data flow diagram and component overview
-- [Cookie Flow](docs/cookie-flow.md) — how Firefox cookie reading works
-- [Design System](docs/design-system.md) — UI design tokens and component specs
+**Z-AI not working:**
+- Verify API key format: `id.secret` (two parts, dot-separated)
+
+## Development
+
+```bash
+# Run tests
+go test ./...
+
+# Build optimized binary
+go build -ldflags "-s -w" -o agents-dashboard
+
+# Run with race detection
+go run -race .
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  agents-dashboard (Go binary)           │
+│                                         │
+│  ┌──────────┐  .env/config.yaml  ┌────┐ │
+│  │  Config  │───────────────────→│API │ │
+│  │  Loader  │                    │Client│
+│  └──────────┘                    └──┬─┘ │
+│       ↑                             │   │
+│       │    External APIs ◄──────────┘   │
+│       │  (kimi, z.ai, chatgpt, claude)  │
+│       └─────────────────────────────────┤
+│              Scheduler (5min)           │
+│                                         │
+│       ┌────────────────────────┐       │
+│       │  HTTP Server (:8777)   │       │
+│       │  • /         Dashboard │       │
+│       │  • /api/data  JSON API │       │
+│       │  • /api/refresh Force  │       │
+│       └────────────────────────┘       │
+└─────────────────────────────────────────┘
+```
 
 ## Tech Stack
 
-- **Backend:** Python 3.12, Flask, gunicorn (gthread), curl_cffi
-- **Frontend:** Vanilla HTML/CSS/JS (single file, no build step)
-- **Infrastructure:** Docker Compose, jlesage/firefox (noVNC)
-- **Cookie reading:** SQLite (Firefox cookie/localStorage databases)
+- **Language**: Go 1.24
+- **HTTP Client**: tls-client (Firefox fingerprinting)
+- **Auth**: JWT (Z-AI), Cookie-based (others)
+- **Frontend**: Vanilla HTML/CSS/JS (embedded)
+- **Config**: YAML + godotenv
 
-## Contributing
+## Legacy Python Version
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+The original Python/Docker implementation is preserved in `legacy/` for reference. The Go version is now the primary implementation.
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.
