@@ -11,6 +11,7 @@ providers:
     cookies:
       "chatgpt.com":
         "__Secure-next-auth.session-token": "${CODEX_SESSION_TOKEN}"
+        "__Secure-next-auth.callback-url": "${CODEX_CALLBACK_URL}"
   claude:
     cookies:
       "claude.ai":
