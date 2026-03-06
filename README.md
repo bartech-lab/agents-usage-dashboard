@@ -4,6 +4,8 @@ Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**,
 
 ![Dashboard](docs/screenshot.png)
 
+**Dashboard Preview:** Open [`docs/dashboard-preview.html`](docs/dashboard-preview.html) in your browser to see the interactive dashboard with all providers connected.
+
 ## Features
 
 - **Unified usage view** - Session and weekly usage for 4 AI assistants in one place
