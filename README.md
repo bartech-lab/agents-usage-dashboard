@@ -2,6 +2,8 @@
 
 Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**, **Z-AI**, **OpenAI Codex**, and **Claude**.
 
+> **Based on:** [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard) - A complete Go rewrite of the original Python/Docker implementation with Firefox/VNC automation. This version uses manual credential configuration and requires no Docker or browser containers.
+
 ![Dashboard](docs/screenshot.png)
 
 Dashboard showing all 4 AI assistants connected with real-time usage monitoring and live countdown timer.
@@ -26,7 +28,7 @@ Dashboard showing all 4 AI assistants connected with real-time usage monitoring 
 
 ```bash
 # Clone and build (creates self-contained ~15MB binary)
-git clone https://github.com/konradozog-debug/AgentsUsageDashboard.git
+git clone https://github.com/bartech-lab/agents-usage-dashboard.git
 cd AgentsUsageDashboard
 go build -o agents-dashboard
 
@@ -36,6 +38,8 @@ cp .env.example .env
 ```
 
 ### Configure
+
+**All credentials must be manually configured.** Unlike the original Python version, this Go implementation does NOT automatically extract cookies from browsers. You must manually extract cookies from your browser and add them to `.env`.
 
 Edit `.env` with your credentials:
 
@@ -146,11 +150,12 @@ The dashboard implements a robust auto-refresh that works even in background tab
 **⚠️ Designed for private, trusted networks only**
 
 - **No authentication** - Place behind reverse proxy (Nginx, Caddy, Authelia) or VPN
-- **Protect config.yaml** - Contains sensitive cookies/API keys
+- **Protect `.env`** - Contains sensitive API keys and session tokens
   ```bash
-  chmod 600 config.yaml .env
+  chmod 600 .env
   ```
-- **Never commit secrets** - `config.yaml` and `.env` are in `.gitignore`
+- **config.yaml is safe to commit** - Uses environment variable references (`${VAR}`), actual secrets are in `.env`
+- **Never commit secrets** - `.env` is in `.gitignore`
 
 ## Troubleshooting
 
@@ -187,7 +192,7 @@ go run -race .
 │  agents-dashboard (Go binary)           │
 │                                         │
 │  ┌──────────┐  .env/config.yaml  ┌────┐ │
-│  │  Config  │───────────────────→│API │ │
+│  │  Config  │  ───────────────→  │API │ │
 │  │  Loader  │                    │Client│
 │  └──────────┘                    └──┬─┘ │
 │       ↑                             │   │
@@ -196,12 +201,12 @@ go run -race .
 │       └─────────────────────────────────┤
 │              Scheduler (5min)           │
 │                                         │
-│       ┌────────────────────────┐       │
-│       │  HTTP Server (:8777)   │       │
-│       │  • /         Dashboard │       │
-│       │  • /api/data  JSON API │       │
-│       │  • /api/refresh Force  │       │
-│       └────────────────────────┘       │
+│       ┌────────────────────────┐        │
+│       │  HTTP Server (:8777)   │        │
+│       │  • /         Dashboard │        │
+│       │  • /api/data  JSON API │        │
+│       │  • /api/refresh Force  │        │
+│       └────────────────────────┘        │
 └─────────────────────────────────────────┘
 ```
 
@@ -213,9 +218,11 @@ go run -race .
 - **Frontend**: Vanilla HTML/CSS/JS (embedded)
 - **Config**: YAML + godotenv
 
-## Legacy Python Version
+## Origins
 
-The original Python/Docker implementation is preserved in `legacy/` for reference. The Go version is now the primary implementation.
+This project is a complete Go rewrite of [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard), which was a Python/Docker implementation with Firefox automation. The original used a Firefox container with automatic cookie extraction. This Go version replaces that with a simpler single-binary approach that requires manual credential configuration.
+
+The original Python code is preserved in `legacy/` for historical reference.
 
 ## License
 
