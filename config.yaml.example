@@ -74,11 +74,11 @@ providers:
 
 # Security Notes:
 # --------------
-# 1. Never commit config.yaml with real credentials (use .env variables)
-# 2. Set file permissions: chmod 600 config.yaml
+# 1. Note: This file uses environment variable references (${VAR}) for sensitive values. The actual secrets are in .env file which should never be committed. config.yaml itself is safe to commit.
+# 2. Set file permissions: chmod 600 .env (not config.yaml)
 # 3. At least one provider must be configured
 # 4. Cookie-based providers require valid session cookies
-# 5. API keys are strongly recommended to use environment variables
+# 5. All sensitive values must use environment variables (${VAR})
 # 6. Server port must be between 1 and 65535
 # 7. Refresh interval supports: s (seconds), m (minutes), h (hours)
 
