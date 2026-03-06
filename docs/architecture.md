@@ -256,18 +256,12 @@ go build -o agents-dashboard
 - [ ] Use systemd/launchd for auto-start
 - [ ] Monitor logs for errors
 
-## Comparison with Python Version
+## Origins
 
-The Go version replaces the Python/Docker architecture with a simpler, more efficient design:
+This project is a complete rewrite in Go of the original Python/Docker implementation. 
 
-| Aspect | Python (Legacy) | Go (Current) |
-|--------|----------------|--------------|
-| **Deployment** | Docker Compose (2 containers) | Single binary |
-| **Dependencies** | Python, Flask, Firefox container | None (static binary) |
-| **Resource usage** | ~200MB+ (Firefox + Python) | ~20MB |
-| **Setup complexity** | High (Docker, Firefox, volumes) | Low (build + run) |
-| **Auth method** | Firefox cookies | Browser cookie extraction |
-| **Auto-refresh** | Basic polling | Robust with visibility API |
-| **Startup time** | Slow (containers) | Instant |
+The original Python version was a Docker-based solution with Firefox container for cookie management. This Go version replaces that architecture with a simpler, single-binary approach that's ~10x more resource efficient.
 
-The Python version is preserved in `legacy/` for reference.
+**Original project:** [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard)
+
+The Python code is preserved in `legacy/` for historical reference.

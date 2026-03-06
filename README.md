@@ -2,7 +2,7 @@
 
 Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**, **Z-AI**, **OpenAI Codex**, and **Claude**.
 
-**[📊 View Dashboard Preview](docs/dashboard-preview.html)** - See what the dashboard looks like with all providers connected
+**Dashboard Preview:** Open [`docs/dashboard-preview.html`](docs/dashboard-preview.html) in your browser to see what the dashboard looks like with all providers connected.
 
 ## Features
 
