@@ -82,6 +82,8 @@ Agents Usage Monitor is a self-contained Go binary that monitors AI assistant us
 - **Codex**: Cookie-based auth (ChatGPT session)
 - **Claude**: Cookie-based auth (session key)
 
+**Note:** Credentials (cookies/API keys) must be manually extracted from browsers and added to `.env`. This differs from the original Python version which used Firefox automation for automatic cookie extraction.
+
 ### 3. HTTP Client (`providers.go`)
 
 **Purpose:** Authenticated API requests with TLS fingerprinting
