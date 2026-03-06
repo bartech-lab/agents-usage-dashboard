@@ -111,8 +111,8 @@ The process is similar in other browsers:
 
 ### ✅ DO
 - Use environment variables (`.env` file)
-- Add `.env` and `config.yaml` to `.gitignore`
-- Set file permissions: `chmod 600 .env config.yaml`
+- Add `.env` to `.gitignore` (config.yaml uses environment variable references like `${VAR}` and is safe to commit)
+- Set file permissions: `chmod 600 .env`
 - Rotate credentials periodically
 - Use a password manager to store tokens
 
