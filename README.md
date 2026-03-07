@@ -28,7 +28,20 @@ Dashboard showing all 4 AI assistants connected with real-time usage monitoring 
 - **Smart refresh** - Visibility API ensures fresh data when switching tabs
 - **Single binary** - No Docker required (~15MB)
 - **Dark theme** - Clean, modern UI with color-coded usage bars
+- **Eye-friendly design** - Calm, low-fatigue interface optimized for long monitoring sessions
 - **Zero dependencies** - Embedded frontend, no external services
+
+## UI Design
+
+The dashboard is designed for **long monitoring sessions** (hours at a time). Key design decisions:
+
+- **Desaturated colors** - Status colors (green/amber/red) are ~30% less saturated than typical UI palettes, reducing retinal stimulation
+- **Numbers as primary anchor** - Percentages are larger/bolder than progress bars, directing attention to the data
+- **Subtle progress bars** - 85% fill opacity, 25% track opacity, 90% width, centered - less visual dominance
+- **No glow effects** - Removed box-shadow glows from bars to reduce visual noise
+- **No chart overload** - Deliberately excluded historical charts to keep focus on current status
+
+This follows monitoring dashboard best practices: information hierarchy over decoration.
 
 ## Quick Start
 
