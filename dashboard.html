@@ -915,8 +915,16 @@
 
     async function toggleProvider(provider) {
       const newState = !providerStates[provider];
+      const oldState = providerStates[provider];
       
+      // Optimistic update: Update UI immediately
+      providerStates[provider] = newState;
+      updateToggleButtons();
+      render(); // Re-render immediately to show/hide provider card
+      
+      // Fire backend calls in background (don't block UI)
       try {
+        // Save toggle state
         const response = await fetch('/api/config', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -931,16 +939,24 @@
           throw new Error(`HTTP ${response.status}`);
         }
         
-        // Update local state
-        providerStates[provider] = newState;
-        updateToggleButtons();
-        
-        // Refresh data to show/hide provider
-        await fetch('/api/refresh');
-        fetchData();
+        // If enabling a provider, refresh data in background
+        if (newState) {
+          // Fire and forget - don't wait
+          fetch('/api/refresh').then(() => fetchData()).catch(err => {
+            console.warn(`Background refresh for ${provider} failed:`, err);
+          });
+        }
         
       } catch (error) {
-        console.error(`Failed to toggle ${provider}:`, error);
+        console.error(`Failed to save ${provider} toggle state:`, error);
+        
+        // Revert UI on error (after a brief delay so user sees the attempt)
+        setTimeout(() => {
+          providerStates[provider] = oldState;
+          updateToggleButtons();
+          render();
+          alert(`Failed to toggle ${provider}. Please try again.`);
+        }, 500);
       }
     }
 
