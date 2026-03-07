@@ -10,45 +10,87 @@
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <style>
+    /* ========================================
+       THEME SYSTEM
+       ======================================== */
+    
+    /* Theme A: Improved Dark (Default) */
     :root {
-      --ok: #22c55e;
-      --ok-bg: rgba(34, 197, 94, 0.12);
-      --warn: #f59e0b;
-      --warn-bg: rgba(245, 158, 11, 0.12);
-      --crit: #ef4444;
-      --crit-bg: rgba(239, 68, 68, 0.12);
+      /* Status Colors */
+      --ok: #4ade80;
+      --ok-bg: rgba(74, 222, 128, 0.15);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, 0.15);
+      --crit: #f87171;
+      --crit-bg: rgba(248, 113, 113, 0.15);
       --off: #6b7280;
-      --off-bg: rgba(107, 114, 128, 0.12);
-      --stale: #8b5cf6;
-      --stale-bg: rgba(139, 92, 246, 0.12);
+      --off-bg: rgba(107, 114, 128, 0.15);
+      --stale: #a78bfa;
+      --stale-bg: rgba(167, 139, 250, 0.15);
 
-      --codex: #06b6d4;
-      --codex-m: rgba(6, 182, 212, 0.15);
-      --codex-d: rgba(6, 182, 212, 0.3);
-      --kimi: #f97316;
-      --kimi-m: rgba(249, 115, 22, 0.15);
-      --kimi-d: rgba(249, 115, 22, 0.3);
-      --claude: #d4a06e;
-      --claude-m: rgba(212, 160, 110, 0.15);
-      --claude-d: rgba(212, 160, 110, 0.3);
-      --zai: #a855f7;
-      --zai-m: rgba(168, 85, 247, 0.15);
-      --zai-d: rgba(168, 85, 247, 0.3);
+      /* Provider Colors - Enhanced */
+      --codex: #22d3ee;
+      --codex-m: rgba(34, 211, 238, 0.2);
+      --codex-d: rgba(34, 211, 238, 0.4);
+      --kimi: #fb923c;
+      --kimi-m: rgba(251, 146, 60, 0.2);
+      --kimi-d: rgba(251, 146, 60, 0.4);
+      --claude: #e5b78b;
+      --claude-m: rgba(229, 183, 139, 0.2);
+      --claude-d: rgba(229, 183, 139, 0.4);
+      --zai: #c084fc;
+      --zai-m: rgba(192, 132, 252, 0.2);
+      --zai-d: rgba(192, 132, 252, 0.4);
 
-      --base: #0c0e12;
-      --card: #13161c;
-      --card-h: #181c24;
-      --elevated: #1e2330;
-      --bar-track: #1a1e28;
-      --border: rgba(255, 255, 255, 0.06);
-      --border-s: rgba(255, 255, 255, 0.03);
+      /* Background Hierarchy - Dark Theme */
+      --base: #090a0f;
+      --card: #14151a;
+      --card-hover: #1a1b20;
+      --elevated: #202127;
+      --bar-track: #1c1d22;
+      
+      /* Text Colors - Improved Contrast */
+      --text-primary: #ffffff;
+      --text-secondary: #c4c9d0;
+      --text-tertiary: #9ca3af;
+      --text-muted: #6b7280;
+      
+      /* Borders */
+      --border: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.2);
+      --border-subtle: rgba(255, 255, 255, 0.05);
 
-      --t1: #e8eaed;
-      --t2: #9ca3af;
-      --t3: #6b7280;
-      --t4: #4b5563;
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 20px;
+
+      /* Fonts */
       --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
       --body: 'DM Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    /* Theme B: Lighter Dark */
+    [data-theme="lighter"] {
+      --base: #1a1d23;
+      --card: #22262d;
+      --card-hover: #2a2e36;
+      --elevated: #323842;
+      --bar-track: #2d3139;
+      
+      --text-primary: #ffffff;
+      --text-secondary: #d1d5db;
+      --text-tertiary: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(255, 255, 255, 0.25);
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
     }
 
     * {
@@ -64,7 +106,7 @@
     body {
       min-height: 100vh;
       background: var(--base);
-      color: var(--t1);
+      color: var(--text-primary);
       font-family: var(--body)
     }
 
@@ -116,7 +158,7 @@
       font-family: var(--mono);
       font-size: 14px;
       font-weight: 700;
-      color: var(--t2)
+      color: var(--text-secondary)
     }
 
     h1 {
@@ -130,7 +172,7 @@
     .subtitle {
       font-family: var(--mono);
       font-size: 10px;
-      color: var(--t3);
+      color: var(--text-tertiary);
       letter-spacing: .04em
     }
 
@@ -155,7 +197,7 @@
     .status-dot span {
       font-family: var(--mono);
       font-size: 11px;
-      color: var(--t2)
+      color: var(--text-secondary)
     }
 
     .dot {
@@ -176,8 +218,27 @@
 
     .last-ts {
       font-family: var(--mono);
-      font-size: 10px;
-      color: var(--t3)
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 4px 8px;
+      background: var(--elevated);
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      transition: all 0.3s ease
+    }
+
+    .last-ts.urgent {
+      color: var(--warn);
+      border-color: var(--warn);
+      box-shadow: 0 0 10px var(--warn-bg);
+      animation: pulse-urgent 1.5s ease-in-out infinite
+    }
+
+    @keyframes pulse-urgent {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
 
     .refresh-btn {
@@ -186,7 +247,7 @@
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--card);
-      color: var(--t2);
+      color: var(--text-secondary);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -196,12 +257,35 @@
     }
 
     .refresh-btn:hover {
-      background: var(--card-h);
-      border-color: var(--t3)
+      background: var(--card-hover);
+      border-color: var(--text-tertiary)
     }
 
     .refresh-btn.spinning .icon {
       animation: spin 1s linear infinite
+    }
+
+    /* Theme Toggle Button */
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.2s;
+      margin-right: 8px
+    }
+
+    .theme-toggle:hover {
+      background: var(--card-hover);
+      border-color: var(--text-tertiary);
+      transform: scale(1.05)
     }
 
     /* Provider Toggle Buttons */
@@ -220,7 +304,7 @@
       border-radius: 16px;
       border: 1px solid var(--border);
       background: transparent;
-      color: var(--t3);
+      color: var(--text-tertiary);
       font-family: var(--body);
       font-size: 12px;
       font-weight: 500;
@@ -230,8 +314,8 @@
     }
 
     .provider-toggle:hover {
-      border-color: var(--t2);
-      color: var(--t2);
+      border-color: var(--text-secondary);
+      color: var(--text-secondary);
     }
 
     .provider-toggle.active {
@@ -299,7 +383,7 @@
         border-radius: 8px;
         border: 1px solid var(--border);
         background: var(--card);
-        color: var(--t2);
+        color: var(--text-secondary);
         cursor: pointer;
         font-size: 14px;
       }
@@ -329,7 +413,7 @@
 
     .setup-banner p {
       font-size: 13px;
-      color: var(--t2);
+      color: var(--text-secondary);
       margin-bottom: 16px;
       line-height: 1.6
     }
@@ -349,7 +433,7 @@
       gap: 24px;
       font-family: var(--mono);
       font-size: 12px;
-      color: var(--t2)
+      color: var(--text-secondary)
     }
 
     .setup-banner .svc-dot {
@@ -375,12 +459,16 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 18px 20px;
-      transition: background .2s;
-      min-width: 0
+      transition: all 0.3s ease;
+      min-width: 0;
+      box-shadow: var(--shadow-sm)
     }
 
     .s-card:hover {
-      background: var(--card-h)
+      background: var(--card-hover);
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px)
     }
 
     .s-label {
@@ -389,7 +477,7 @@
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: .08em;
-      color: var(--t3);
+      color: var(--text-tertiary);
       margin-bottom: 8px
     }
 
@@ -404,14 +492,14 @@
 
     .s-unit {
       font-size: 18px;
-      color: var(--t3);
+      color: var(--text-tertiary);
       margin-left: 2px
     }
 
     .s-sub {
       font-family: var(--body);
       font-size: 11px;
-      color: var(--t2)
+      color: var(--text-secondary)
     }
 
     /* Agent cards grid */
@@ -428,15 +516,20 @@
       border-radius: 12px;
       overflow: hidden;
       min-width: 0;
-      transition: all .2s
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-sm)
     }
 
     .a-card:hover {
-      background: var(--card-h)
+      background: var(--card-hover);
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px)
     }
 
     .a-card.offline {
-      opacity: .6
+      opacity: .7;
+      filter: grayscale(0.3)
     }
 
     .a-accent {
@@ -479,7 +572,7 @@
     .a-error {
       padding: 20px 0;
       text-align: center;
-      color: var(--t3);
+      color: var(--text-tertiary);
       font-family: var(--body);
       font-size: 13px
     }
@@ -494,7 +587,7 @@
       border-top: 1px solid var(--border-s);
       font-family: var(--mono);
       font-size: 11px;
-      color: var(--t3)
+      color: var(--text-tertiary)
     }
 
     /* Usage bar */
@@ -512,7 +605,7 @@
     .u-bar-label {
       font-family: var(--body);
       font-size: 12px;
-      color: var(--t2);
+      color: var(--text-secondary);
       letter-spacing: .02em;
       text-transform: uppercase
     }
@@ -527,7 +620,7 @@
     .u-bar-reset {
       font-family: var(--mono);
       font-size: 10px;
-      color: var(--t3)
+      color: var(--text-tertiary)
     }
 
     .u-track {
@@ -571,7 +664,7 @@
     .chart-sub {
       font-family: var(--mono);
       font-size: 10px;
-      color: var(--t3);
+      color: var(--text-tertiary);
       text-transform: uppercase;
       letter-spacing: .06em
     }
@@ -629,7 +722,7 @@
       text-align: center;
       font-family: var(--mono);
       font-size: 8px;
-      color: var(--t3);
+      color: var(--text-tertiary);
       letter-spacing: -.02em;
       transition: color .2s
     }
@@ -645,7 +738,7 @@
       gap: 8px;
       font-family: var(--mono);
       font-size: 10px;
-      color: var(--t3)
+      color: var(--text-tertiary)
     }
 
     .ftr-status {
@@ -655,7 +748,7 @@
     /* Skeleton */
     .skeleton {
       border-radius: 8px;
-      background: linear-gradient(90deg, var(--card) 25%, var(--card-h) 50%, var(--card) 75%);
+      background: linear-gradient(90deg, var(--card) 25%, var(--card-hover) 50%, var(--card) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s ease-in-out infinite
     }
@@ -759,6 +852,7 @@
         </div>
       </div>
       <div class="hdr-right">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Toggle providers">☰</button>
         <div class="provider-toggles" id="providerToggles">
           <button class="provider-toggle active" data-provider="kimi" onclick="toggleProvider('kimi')">
@@ -779,7 +873,7 @@
           </button>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <span class="last-ts" id="nextRefresh" style="color:var(--t4)"></span>
+          <span class="last-ts" id="nextRefresh"></span>
           <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
             <span class="icon">&#x21BB;</span>
           </button>
@@ -965,6 +1059,29 @@
       menu.classList.toggle('show');
     }
 
+    // Theme toggle
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'lighter' ? 'dark' : 'lighter';
+      
+      if (newTheme === 'lighter') {
+        html.setAttribute('data-theme', 'lighter');
+      } else {
+        html.removeAttribute('data-theme');
+      }
+      
+      localStorage.setItem('theme', newTheme);
+    }
+
+    // Load saved theme
+    function loadTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'lighter') {
+        document.documentElement.setAttribute('data-theme', 'lighter');
+      }
+    }
+
     // Close mobile menu when clicking outside
     document.addEventListener('click', (e) => {
       const menu = document.getElementById('providerToggles');
@@ -1022,6 +1139,7 @@
       const el = document.getElementById('nextRefresh');
       if (!state?.next_refresh_at) {
         el.textContent = '';
+        el.classList.remove('urgent');
         return;
       }
 
@@ -1031,8 +1149,15 @@
 
       if (remaining > 0) {
         el.textContent = `Next refresh in ${mins}:${secs.toString().padStart(2, '0')}`;
+        // Add urgent class when less than 60 seconds remaining
+        if (remaining < 60000) {
+          el.classList.add('urgent');
+        } else {
+          el.classList.remove('urgent');
+        }
       } else {
         el.textContent = 'Refreshing...';
+        el.classList.remove('urgent');
       }
     }
 
@@ -1111,7 +1236,7 @@
     }
 
     function summaryCard(label, value, unit, sub, status) {
-      const color = status ? statusColor(status) : 'var(--t1)';
+      const color = status ? statusColor(status) : 'var(--text-primary)';
       return `
     <div class="s-card">
       <div class="s-label">${label}</div>
@@ -1275,7 +1400,8 @@
       }
     });
 
-    // Load toggle states, then fetch data and start polling
+    // Load saved theme and toggle states, then fetch data
+    loadTheme();
     loadToggleStates().then(() => {
       fetchData().then(() => {
         startPolling();
