@@ -22,6 +22,7 @@ Dashboard showing all 4 AI assistants connected with real-time usage monitoring 
 ## Features
 
 - **Unified usage view** - Session and weekly usage for 4 AI assistants in one place
+- **Provider toggles** - Enable/disable providers instantly from the header bar
 - **Real-time monitoring** - Robust auto-refresh with background tab support
 - **Live countdown** - Shows exactly when data will refresh next
 - **Smart refresh** - Visibility API ensures fresh data when switching tabs
@@ -171,6 +172,42 @@ ZAI_API_KEY=${ZAI_API_KEY}
 CLAUDE_SESSION_KEY=
 ```
 
+## Provider Toggles
+
+Control which providers are monitored directly from the dashboard header:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  ⧫  Agents Usage Monitor    [● Kimi] [● ZAI] [● Codex] [○ Claude]  ↻ │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**How to use:**
+- **Click a toggle button** to enable/disable a provider instantly
+- **Active** (filled/colored): Provider is monitored and displayed
+- **Inactive** (outlined/gray): Provider is hidden from dashboard
+- Changes persist to `config.yaml` automatically
+- Optimistic UI updates - no waiting, instant feedback!
+
+**Toggle behavior:**
+- **Disabling**: Provider card disappears immediately
+- **Enabling**: Provider card appears immediately, data refreshes in background
+- **Mobile**: Tap ☰ menu button to access toggles on small screens
+
+**Configuration file sync:**
+Toggle states are saved to `config.yaml`:
+```yaml
+providers:
+  kimi:
+    enabled: true    # Toggle ON
+  zai:
+    enabled: true    # Toggle ON
+  codex:
+    enabled: true    # Toggle ON
+  claude:
+    enabled: false   # Toggle OFF
+```
+
 ## Auto-Refresh System
 
 The dashboard implements a robust auto-refresh that works even in background tabs:
@@ -189,6 +226,8 @@ The dashboard implements a robust auto-refresh that works even in background tab
 | `/` | GET | Dashboard UI |
 | `/api/data` | GET | Current usage data (JSON) |
 | `/api/refresh` | GET | Force immediate refresh |
+| `/api/config` | GET | Get provider enabled states |
+| `/api/config` | PATCH | Update provider enabled states |
 
 ## Resource Usage
 
@@ -266,6 +305,7 @@ go run -race .
 │       │  • /         Dashboard │        │
 │       │  • /api/data  JSON API │        │
 │       │  • /api/refresh Force  │        │
+│       │  • /api/config Toggles │        │
 │       └────────────────────────┘        │
 └─────────────────────────────────────────┘
 ```
