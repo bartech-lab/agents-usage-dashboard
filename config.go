@@ -19,20 +19,33 @@ type Config struct {
 
 // ProvidersConfig contains authentication settings for all providers
 type ProvidersConfig struct {
-	Codex  ProviderAuth `yaml:"codex"`
-	Kimi   ProviderAuth `yaml:"kimi"`
-	Claude ProviderAuth `yaml:"claude"`
-	Zai    ZAIConfig    `yaml:"zai"`
+	Kimi   ProviderAuth        `yaml:"kimi"`
+	Zai    ZAIConfig           `yaml:"zai"`
+	Codex  CodexProviderConfig `yaml:"codex"`
+	Claude ProviderAuth        `yaml:"claude"`
+}
+
+// CodexProviderConfig contains Codex-specific configuration
+type CodexProviderConfig struct {
+	Enabled bool         `yaml:"enabled"`
+	OAuth   *OAuthConfig `yaml:"oauth,omitempty"`
 }
 
 // ProviderAuth contains cookie-based authentication for providers
 type ProviderAuth struct {
+	Enabled bool                         `yaml:"enabled"`
 	Cookies map[string]map[string]string `yaml:"cookies"`
 }
 
 // ZAIConfig contains API key authentication for ZAI provider
 type ZAIConfig struct {
-	APIKey string `yaml:"api_key"`
+	Enabled bool   `yaml:"enabled"`
+	APIKey  string `yaml:"api_key"`
+}
+
+// OAuthConfig contains OAuth token file configuration
+type OAuthConfig struct {
+	TokenFile string `yaml:"token_file"`
 }
 
 // DefaultRefreshInterval is the default refresh interval if not specified
@@ -108,24 +121,38 @@ func validateConfig(config *Config) error {
 	// Validate that at least one provider is configured
 	hasConfiguredProvider := false
 
-	// Check ZAI
+	// Check ZAI - needs API key
 	if config.Providers.Zai.APIKey != "" {
 		hasConfiguredProvider = true
 	}
 
-	// Check cookie-based providers
-	if len(config.Providers.Codex.Cookies) > 0 {
-		hasConfiguredProvider = true
-	}
-	if len(config.Providers.Kimi.Cookies) > 0 {
-		hasConfiguredProvider = true
-	}
-	if len(config.Providers.Claude.Cookies) > 0 {
+	// Check Codex - needs OAuth token file
+	if config.Providers.Codex.OAuth != nil && config.Providers.Codex.OAuth.TokenFile != "" {
 		hasConfiguredProvider = true
 	}
 
+	// Check Kimi - needs cookies
+	if len(config.Providers.Kimi.Cookies) > 0 {
+		for _, domainCookies := range config.Providers.Kimi.Cookies {
+			if len(domainCookies) > 0 {
+				hasConfiguredProvider = true
+				break
+			}
+		}
+	}
+
+	// Check Claude - needs cookies
+	if len(config.Providers.Claude.Cookies) > 0 {
+		for _, domainCookies := range config.Providers.Claude.Cookies {
+			if len(domainCookies) > 0 {
+				hasConfiguredProvider = true
+				break
+			}
+		}
+	}
+
 	if !hasConfiguredProvider {
-		return fmt.Errorf("at least one provider must be configured")
+		return fmt.Errorf("at least one provider must be configured with credentials (check your config.yaml and .env files)")
 	}
 
 	return nil

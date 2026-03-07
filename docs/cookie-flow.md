@@ -1,13 +1,16 @@
 # Authentication Guide
 
+> **⚠️ Important:** Codex now uses **OAuth tokens** instead of cookies. Cookie-based Codex authentication is deprecated and blocked by Cloudflare. See [codex-oauth.md](codex-oauth.md) for Codex setup. This guide covers cookie-based auth for **Kimi** and **Claude** only.
+
 This guide explains how to extract authentication credentials for each AI assistant provider.
 
 ## Overview
 
-The Agents Usage Monitor uses two authentication methods:
+The Agents Usage Monitor uses three authentication methods:
 
-1. **Cookie-based authentication** - For Kimi, Codex, and Claude
+1. **Cookie-based authentication** - For Kimi and Claude
 2. **API key authentication** - For Z-AI
+3. **OAuth tokens** - For Codex (recommended, see [codex-oauth.md](codex-oauth.md))
 
 ## Cookie Extraction (Chrome/Chromium)
 

@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	stdhttp "net/http"
 	"net/http/httptest"
-	"net"
 	"net/url"
 	"strings"
 	"testing"
@@ -30,7 +30,9 @@ func (n *integrationNoopBandwidthTracker) GetWriteBytes() int64 { return 0 }
 
 func (n *integrationNoopBandwidthTracker) GetReadBytes() int64 { return 0 }
 
-func (n *integrationNoopBandwidthTracker) TrackConnection(_ context.Context, conn net.Conn) net.Conn { return conn }
+func (n *integrationNoopBandwidthTracker) TrackConnection(_ context.Context, conn net.Conn) net.Conn {
+	return conn
+}
 
 type integrationMockHTTPClient struct {
 	servers        map[string]*httptest.Server
@@ -532,10 +534,12 @@ func newIntegrationConfig() *Config {
 	return &Config{
 		RefreshInterval: 2 * time.Minute,
 		Providers: ProvidersConfig{
-			Codex:  ProviderAuth{Cookies: map[string]map[string]string{"chatgpt.com": {"session": "cookie"}}},
-			Kimi:   ProviderAuth{Cookies: map[string]map[string]string{"www.kimi.com": {"kimi-auth": "token"}}},
-			Claude: ProviderAuth{Cookies: map[string]map[string]string{"claude.ai": {"sessionKey": "cookie"}}},
-			Zai:    ZAIConfig{APIKey: "kid.secret"},
+			Codex: CodexProviderConfig{
+				Enabled: true,
+			},
+			Kimi:   ProviderAuth{Enabled: true, Cookies: map[string]map[string]string{"www.kimi.com": {"kimi-auth": "token"}}},
+			Claude: ProviderAuth{Enabled: true, Cookies: map[string]map[string]string{"claude.ai": {"sessionKey": "cookie"}}},
+			Zai:    ZAIConfig{Enabled: true, APIKey: "kid.secret"},
 		},
 	}
 }
@@ -624,8 +628,8 @@ func newProviderTestServers(failCodex bool) *providerTestServers {
 			}})
 		case "/api/organizations/org-abc/usage":
 			json.NewEncoder(w).Encode(map[string]any{
-				"five_hour": map[string]any{"utilization": 11.0, "resets_at": time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)},
-				"seven_day": map[string]any{"utilization": 28.0, "resets_at": time.Now().Add(4 * 24 * time.Hour).UTC().Format(time.RFC3339)},
+				"five_hour":        map[string]any{"utilization": 11.0, "resets_at": time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)},
+				"seven_day":        map[string]any{"utilization": 28.0, "resets_at": time.Now().Add(4 * 24 * time.Hour).UTC().Format(time.RFC3339)},
 				"seven_day_sonnet": map[string]any{"utilization": 9.0},
 				"seven_day_opus":   map[string]any{"utilization": 1.0},
 			})

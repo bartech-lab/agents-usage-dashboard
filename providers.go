@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -41,6 +43,182 @@ type Provider struct {
 	Type string
 }
 
+// CodexOAuthTokens represents the structure of ~/.codex/auth.json
+type CodexOAuthTokens struct {
+	Tokens struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		IDToken      string `json:"id_token"`
+		AccountID    string `json:"account_id"`
+	} `json:"tokens"`
+	LastRefresh string `json:"last_refresh"`
+}
+
+// checkTokenExpiration checks if OAuth tokens are potentially expired
+func checkTokenExpiration(lastRefresh string) string {
+	if lastRefresh == "" {
+		return ""
+	}
+
+	lastRefreshTime, err := time.Parse(time.RFC3339, lastRefresh)
+	if err != nil {
+		return ""
+	}
+
+	age := time.Since(lastRefreshTime)
+
+	if age > 30*24*time.Hour {
+		days := int(age.Hours() / 24)
+		return fmt.Sprintf("OAuth tokens are %d days old (may expire soon - run: codex login)", days)
+	}
+
+	if age > 7*24*time.Hour {
+		days := int(age.Hours() / 24)
+		return fmt.Sprintf("OAuth tokens are %d days old", days)
+	}
+
+	return ""
+}
+
+// fetchCodexViaOAuth fetches usage data using OAuth tokens from Codex CLI
+func fetchCodexViaOAuth(client tls_client.HttpClient, tokenFile string) (*ProviderData, error) {
+	// Expand environment variables
+	tokenFile = strings.TrimSpace(tokenFile)
+	if strings.Contains(tokenFile, "${") {
+		tokenFile = strings.ReplaceAll(tokenFile, "${HOME}", os.Getenv("HOME"))
+		tokenFile = strings.ReplaceAll(tokenFile, "${USER}", os.Getenv("USER"))
+	}
+
+	// Read token file
+	data, err := os.ReadFile(tokenFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("codex oauth token file not found: %s (install codex cli and run: codex login)", tokenFile)
+		}
+		return nil, fmt.Errorf("read codex oauth tokens from %s: %w", tokenFile, err)
+	}
+
+	// Parse tokens
+	var tokens CodexOAuthTokens
+	if err := json.Unmarshal(data, &tokens); err != nil {
+		return nil, fmt.Errorf("parse codex oauth tokens: %w (ensure ~/.codex/auth.json is valid JSON)", err)
+	}
+
+	if tokens.Tokens.AccessToken == "" {
+		return nil, fmt.Errorf("codex oauth access_token missing in %s (re-run: codex login)", tokenFile)
+	}
+
+	// Check token age
+	expirationWarning := checkTokenExpiration(tokens.LastRefresh)
+
+	// Create API request
+	req, err := http.NewRequest(http.MethodGet, "https://chatgpt.com/backend-api/wham/usage", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create codex usage request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+tokens.Tokens.AccessToken)
+	req.Header.Set("User-Agent", "AgentsDashboard/1.0")
+	req.Header.Set("Accept", "application/json")
+
+	if tokens.Tokens.AccountID != "" {
+		req.Header.Set("ChatGPT-Account-Id", tokens.Tokens.AccountID)
+	}
+
+	// Execute request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch codex usage API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Handle errors
+	if resp.StatusCode == 401 {
+		return nil, fmt.Errorf("codex oauth token expired (status 401 - re-run: codex login)")
+	}
+
+	if resp.StatusCode == 403 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("codex usage API forbidden (status 403): %s", string(body))
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("codex usage API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var usageData struct {
+		PlanType     string `json:"plan_type"`
+		Plan         string `json:"plan"`
+		LimitReached bool   `json:"limit_reached"`
+		RateLimit    struct {
+			LimitReached  bool `json:"limit_reached"`
+			PrimaryWindow struct {
+				UsedPercent  *float64 `json:"used_percent"`
+				UsagePercent *float64 `json:"usage_percent"`
+				ResetAt      float64  `json:"reset_at"`
+			} `json:"primary_window"`
+			SecondaryWindow struct {
+				UsedPercent  *float64 `json:"used_percent"`
+				UsagePercent *float64 `json:"usage_percent"`
+				ResetAt      float64  `json:"reset_at"`
+			} `json:"secondary_window"`
+		} `json:"rate_limit"`
+		Credits *Credits `json:"credits"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&usageData); err != nil {
+		return nil, fmt.Errorf("decode codex usage response: %w", err)
+	}
+
+	// Build result
+	plan := usageData.PlanType
+	if plan == "" {
+		plan = usageData.Plan
+	}
+	if plan == "" {
+		plan = "unknown"
+	}
+
+	sessionPct := pickPercent(usageData.RateLimit.PrimaryWindow.UsedPercent, usageData.RateLimit.PrimaryWindow.UsagePercent)
+	weeklyPct := pickPercent(usageData.RateLimit.SecondaryWindow.UsedPercent, usageData.RateLimit.SecondaryWindow.UsagePercent)
+
+	sessionRemaining := 0
+	if remaining := remainingFromUnix(usageData.RateLimit.PrimaryWindow.ResetAt); remaining != nil {
+		sessionRemaining = *remaining
+	}
+
+	weeklyRemaining := 0
+	if remaining := remainingFromUnix(usageData.RateLimit.SecondaryWindow.ResetAt); remaining != nil {
+		weeklyRemaining = *remaining
+	}
+
+	result := &ProviderData{
+		Status:       "ok",
+		Plan:         plan,
+		LimitReached: usageData.LimitReached || usageData.RateLimit.LimitReached,
+		Session: &UsageWindow{
+			UsagePct:         sessionPct,
+			ResetAt:          unixToISO(usageData.RateLimit.PrimaryWindow.ResetAt),
+			RemainingSeconds: sessionRemaining,
+		},
+		Weekly: &UsageWindow{
+			UsagePct:         weeklyPct,
+			ResetAt:          unixToISO(usageData.RateLimit.SecondaryWindow.ResetAt),
+			RemainingSeconds: weeklyRemaining,
+		},
+		Credits:        usageData.Credits,
+		DailyBreakdown: []DailyEntry{},
+	}
+
+	if expirationWarning != "" {
+		log.Printf("Codex token warning: %s", expirationWarning)
+	}
+
+	return result, nil
+}
+
 func fetchCodex(client tls_client.HttpClient, cookies map[string]string) (*ProviderData, error) {
 	cookieHeader := buildCookieHeader(cookies)
 	if cookieHeader == "" {
@@ -52,6 +230,10 @@ func fetchCodex(client tls_client.HttpClient, cookies map[string]string) (*Provi
 		return nil, fmt.Errorf("create codex session request: %w", err)
 	}
 	sessionReq.Header.Set("Cookie", cookieHeader)
+	sessionReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	sessionReq.Header.Set("Accept", "application/json")
+	sessionReq.Header.Set("Origin", "https://chatgpt.com")
+	sessionReq.Header.Set("Referer", "https://chatgpt.com/")
 
 	sessionResp, err := client.Do(sessionReq)
 	if err != nil {
@@ -78,6 +260,10 @@ func fetchCodex(client tls_client.HttpClient, cookies map[string]string) (*Provi
 		return nil, fmt.Errorf("create codex usage request: %w", err)
 	}
 	usageReq.Header.Set("Authorization", "Bearer "+sessionData.AccessToken)
+	usageReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	usageReq.Header.Set("Accept", "application/json")
+	usageReq.Header.Set("Origin", "https://chatgpt.com")
+	usageReq.Header.Set("Referer", "https://chatgpt.com/")
 
 	usageResp, err := client.Do(usageReq)
 	if err != nil {
@@ -154,6 +340,10 @@ func fetchCodex(client tls_client.HttpClient, cookies map[string]string) (*Provi
 	breakdownReq, err := http.NewRequest(http.MethodGet, "https://chatgpt.com/backend-api/wham/usage/daily-token-usage-breakdown", nil)
 	if err == nil {
 		breakdownReq.Header.Set("Authorization", "Bearer "+sessionData.AccessToken)
+		breakdownReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+		breakdownReq.Header.Set("Accept", "application/json")
+		breakdownReq.Header.Set("Origin", "https://chatgpt.com")
+		breakdownReq.Header.Set("Referer", "https://chatgpt.com/")
 
 		breakdownResp, breakdownErr := client.Do(breakdownReq)
 		if breakdownErr == nil {

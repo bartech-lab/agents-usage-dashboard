@@ -11,15 +11,16 @@ import (
 )
 
 type Scheduler struct {
-	config    *Config
-	client    tls_client.HttpClient
-	cache     *CacheData
-	cacheMu   sync.RWMutex
-	fetchLock atomic.Bool
-	ticker    *time.Ticker
-	stopChan  chan struct{}
-	stopOnce  sync.Once
-	claudeOrg *string
+	config      *Config
+	client      tls_client.HttpClient
+	cache       *CacheData
+	cacheMu     sync.RWMutex
+	fetchLock   atomic.Bool
+	ticker      *time.Ticker
+	stopChan    chan struct{}
+	stopOnce    sync.Once
+	claudeOrg   *string
+	claudeOrgID *string
 }
 
 func NewScheduler(cfg *Config, client tls_client.HttpClient) *Scheduler {
@@ -45,25 +46,35 @@ func (s *Scheduler) fetchAll() {
 
 	now := time.Now().UTC()
 
-	codexData, codexErr := fetchCodex(s.client, flattenCookies(s.config.Providers.Codex.Cookies))
-	kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
-	claudeData, claudeOrg, claudeErr := fetchClaude(s.client, flattenCookies(s.config.Providers.Claude.Cookies), s.claudeOrg)
-	zaiData, zaiErr := fetchZAI(s.client, s.config.Providers.Zai.APIKey)
-
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	s.cache.Codex = s.resolveProviderResult(codexData, codexErr, s.cache.Codex)
+	// Fetch all providers (always attempt, remove providers from config to disable)
+	kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
 	s.cache.Kimi = s.resolveProviderResult(kimiData, kimiErr, s.cache.Kimi)
-	s.cache.Claude = s.resolveProviderResult(claudeData, claudeErr, s.cache.Claude)
+
+	zaiData, zaiErr := fetchZAI(s.client, s.config.Providers.Zai.APIKey)
 	s.cache.Zai = s.resolveProviderResult(zaiData, zaiErr, s.cache.Zai)
 
+	codexData, codexErr := s.fetchCodex()
+	s.cache.Codex = s.resolveProviderResult(codexData, codexErr, s.cache.Codex)
+
+	claudeData, claudeOrg, claudeErr := fetchClaude(s.client, flattenCookies(s.config.Providers.Claude.Cookies), s.claudeOrgID)
+	s.cache.Claude = s.resolveProviderResult(claudeData, claudeErr, s.cache.Claude)
 	if claudeErr == nil && claudeOrg != nil && strings.TrimSpace(*claudeOrg) != "" {
-		s.claudeOrg = claudeOrg
+		s.claudeOrgID = claudeOrg
 	}
 
 	s.cache.LastFetch = now.Format(time.RFC3339)
 	s.cache.NextRefreshAt = now.Add(s.config.RefreshInterval).Format(time.RFC3339)
+}
+
+func (s *Scheduler) fetchCodex() (*ProviderData, error) {
+	if s.config.Providers.Codex.OAuth == nil || s.config.Providers.Codex.OAuth.TokenFile == "" {
+		return nil, fmt.Errorf("codex oauth not configured (set codex.oauth.token_file in config.yaml)")
+	}
+
+	return fetchCodexViaOAuth(s.client, s.config.Providers.Codex.OAuth.TokenFile)
 }
 
 func (s *Scheduler) resolveProviderResult(data *ProviderData, err error, prev *ProviderData) *ProviderData {

@@ -1,17 +1,15 @@
 refresh_interval: 5m
 server_port: 8777
 providers:
-  zai:
-    api_key: "${ZAI_API_KEY}"
   kimi:
     cookies:
       "kimi.com":
         "kimi-auth": "${KIMI_AUTH_TOKEN}"
+  zai:
+    api_key: "${ZAI_API_KEY}"
   codex:
-    cookies:
-      "chatgpt.com":
-        "__Secure-next-auth.session-token": "${CODEX_SESSION_TOKEN}"
-        "__Secure-next-auth.callback-url": "${CODEX_CALLBACK_URL}"
+    oauth:
+      token_file: "${HOME}/.codex/auth.json"
   claude:
     cookies:
       "claude.ai":

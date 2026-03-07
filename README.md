@@ -8,6 +8,17 @@ Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**,
 
 Dashboard showing all 4 AI assistants connected with real-time usage monitoring and live countdown timer.
 
+## Provider Status
+
+| Provider | Status | Auth Method | Notes |
+|----------|--------|-------------|-------|
+| **Kimi** | ✅ Working | Cookie (JWT) | Session + weekly usage |
+| **Z-AI** | ✅ Working | API Key | Session + weekly usage |
+| **Codex** | ✅ Working | OAuth | Requires Codex CLI setup (see [docs/codex-oauth.md](docs/codex-oauth.md)) |
+| **Claude** | ⚠️ Blocked | Cookie | Cloudflare blocking (may not work) |
+
+**Note:** Cookie-based Codex auth is deprecated. Use OAuth instead.
+
 ## Features
 
 - **Unified usage view** - Session and weekly usage for 4 AI assistants in one place
@@ -39,18 +50,18 @@ cp .env.example .env
 
 ### Configure
 
-**All credentials must be manually configured.** Unlike the original Python version, this Go implementation does NOT automatically extract cookies from browsers. You must manually extract cookies from your browser and add them to `.env`.
-
-Edit `.env` with your credentials:
+Edit `.env` with your credentials (at minimum, add Z-AI or Kimi):
 
 ```bash
-# At minimum, add Z-AI API key
+# Required - choose at least one
 ZAI_API_KEY=your-id.your-secret
-
-# Add others as needed
 KIMI_AUTH_TOKEN=your-kimi-token
-CODEX_SESSION_TOKEN=your-codex-token
-CLAUDE_SESSION_KEY=your-claude-key
+
+# Optional - Claude (blocked by Cloudflare)
+CLAUDE_SESSION_KEY=
+
+# Codex - no env vars needed, uses OAuth tokens
+# See docs/codex-oauth.md for setup
 ```
 
 ### Run
@@ -61,18 +72,79 @@ CLAUDE_SESSION_KEY=your-claude-key
 
 Open http://localhost:8777
 
-## Configuration
+## Provider Configuration
 
-### Minimal (Z-AI only)
+### Kimi (Working ✅)
 
-```yaml
-providers:
-  zai:
-    api_key: "${ZAI_API_KEY}"
+**Method:** Cookie-based authentication
+
+1. Log in to kimi.com in your browser
+2. Open DevTools → Application → Cookies → kimi.com
+3. Copy the `kimi-auth` cookie value
+4. Add to `.env`:
+   ```bash
+   KIMI_AUTH_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...
+   ```
+
+### Z-AI (Working ✅)
+
+**Method:** API key authentication
+
+1. Visit [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)
+2. Create or copy your API key
+3. Add to `.env`:
+   ```bash
+   ZAI_API_KEY=${ZAI_API_KEY}
+   ```
+   
+Format: `id.secret` (two parts separated by a dot)
+
+### Codex (Working ✅)
+
+**Method:** OAuth tokens from Codex CLI
+
+**Cookie-based auth is deprecated** - Cloudflare blocks automated requests.
+
+**Quick Setup:**
+```bash
+# Install Codex CLI
+brew install codex
+
+# Authenticate (opens browser)
+codex login
+
+# Optional: Uninstall CLI (tokens remain)
+brew uninstall codex
 ```
 
-### Full (all providers)
+**Detailed Setup:** See [docs/codex-oauth.md](docs/codex-oauth.md)
 
+**Why OAuth?**
+- ✅ No Cloudflare blocking
+- ✅ Long-lived tokens (weeks/months)
+- ✅ Simple one-time setup
+- ❌ Cookies: Blocked by Cloudflare, complex extraction
+
+### Claude (Blocked ⚠️)
+
+**Method:** Cookie-based authentication
+
+**Status:** Likely blocked by Cloudflare
+
+If you want to try:
+1. Extract `sessionKey` cookie from claude.ai
+2. Add to `.env`:
+   ```bash
+   CLAUDE_SESSION_KEY=your-session-key
+   ```
+
+**Expected result:** HTTP 403 Forbidden (Cloudflare blocking)
+
+We keep Claude in the codebase for future enablement if Cloudflare issues are resolved. To disable Claude completely, remove the `claude:` section from `config.yaml`.
+
+## Configuration File
+
+**config.yaml** (safe to commit - only env var references):
 ```yaml
 refresh_interval: 5m
 server_port: 8777
@@ -84,40 +156,20 @@ providers:
   zai:
     api_key: "${ZAI_API_KEY}"
   codex:
-    cookies:
-      "chatgpt.com":
-        "__Secure-next-auth.session-token": "${CODEX_SESSION_TOKEN}"
+    oauth:
+      token_file: "${HOME}/.codex/auth.json"
   claude:
     cookies:
       "claude.ai":
         "sessionKey": "${CLAUDE_SESSION_KEY}"
 ```
 
-## Cookie Extraction
-
-Cookie-based providers require extracting cookies from your browser:
-
-**Chrome/Edge:**
-1. Log in to service (chatgpt.com, kimi.com, or claude.ai)
-2. F12 → Application → Cookies
-3. Copy required cookie values
-
-**Firefox:**
-1. Log in to service
-2. F12 → Storage → Cookies
-3. Copy required cookie values
-
-### Required Cookies
-
-| Provider | Domain | Cookie Name |
-|----------|--------|-------------|
-| **Kimi** | kimi.com | `kimi-auth` |
-| **Z-AI** | z.ai | API key (no cookie) |
-| **Codex** | chatgpt.com | `__Secure-next-auth.session-token` |
-| **Claude** | claude.ai | `sessionKey` |
-
-**Z-AI API Key:** Get from [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)  
-Format: `id.secret` (two parts separated by a dot)
+**.env** (NOT safe to commit - contains actual secrets):
+```bash
+KIMI_AUTH_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...
+ZAI_API_KEY=${ZAI_API_KEY}
+CLAUDE_SESSION_KEY=
+```
 
 ## Auto-Refresh System
 
@@ -165,9 +217,17 @@ The dashboard implements a robust auto-refresh that works even in background tab
 3. Check console output for errors
 4. Test: `curl http://localhost:8777/api/data`
 
+**Codex not working:**
+- Install Codex CLI and run `codex login` (see [docs/codex-oauth.md](docs/codex-oauth.md))
+- Verify token file exists: `ls -la ~/.codex/auth.json`
+
+**Claude showing error:**
+- Expected - Cloudflare blocking automated requests
+- Provider is disabled by default for this reason
+
 **Stale data:**
-- Session expired - re-extract cookies from browser
-- Check console for "Fetch failed" messages
+- Session expired - re-extract cookies from browser (Kimi)
+- For Codex: Re-run `codex login` to refresh OAuth tokens
 
 **Z-AI not working:**
 - Verify API key format: `id.secret` (two parts, dot-separated)
@@ -214,7 +274,7 @@ go run -race .
 
 - **Language**: Go 1.24
 - **HTTP Client**: tls-client (Firefox fingerprinting)
-- **Auth**: JWT (Z-AI), Cookie-based (others)
+- **Auth**: JWT (Z-AI), Cookie-based (Kimi/Claude), OAuth (Codex)
 - **Frontend**: Vanilla HTML/CSS/JS (embedded)
 - **Config**: YAML + godotenv
 
