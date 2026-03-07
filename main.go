@@ -20,12 +20,13 @@ import (
 var dashboardHTML []byte
 
 type Server struct {
-	config    *Config
-	scheduler *Scheduler
-	server    *http.Server
+	config     *Config
+	scheduler  *Scheduler
+	server     *http.Server
+	configPath string
 }
 
-func NewServer(cfg *Config) (*Server, error) {
+func NewServer(cfg *Config, configPath string) (*Server, error) {
 	client, err := createHTTPClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
@@ -33,8 +34,9 @@ func NewServer(cfg *Config) (*Server, error) {
 	scheduler := NewScheduler(cfg, client)
 
 	return &Server{
-		config:    cfg,
-		scheduler: scheduler,
+		config:     cfg,
+		scheduler:  scheduler,
+		configPath: configPath,
 	}, nil
 }
 
@@ -50,6 +52,7 @@ func (s *Server) registerRoutes() {
 	http.HandleFunc("/", s.handleDashboard)
 	http.HandleFunc("/api/data", s.handleData)
 	http.HandleFunc("/api/refresh", s.handleRefresh)
+	http.HandleFunc("/api/config", s.handleConfig)
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +71,95 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(s.scheduler.GetCache())
+}
+
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		// Return current config (without sensitive data)
+		type PublicConfig struct {
+			Providers struct {
+				Kimi struct {
+					Enabled bool `json:"enabled"`
+				} `json:"kimi"`
+				Zai struct {
+					Enabled bool `json:"enabled"`
+				} `json:"zai"`
+				Codex struct {
+					Enabled bool `json:"enabled"`
+				} `json:"codex"`
+				Claude struct {
+					Enabled bool `json:"enabled"`
+				} `json:"claude"`
+			} `json:"providers"`
+		}
+
+		pub := PublicConfig{}
+		pub.Providers.Kimi.Enabled = s.config.Providers.Kimi.Enabled
+		pub.Providers.Zai.Enabled = s.config.Providers.Zai.Enabled
+		pub.Providers.Codex.Enabled = s.config.Providers.Codex.Enabled
+		pub.Providers.Claude.Enabled = s.config.Providers.Claude.Enabled
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pub)
+
+	case http.MethodPatch:
+		var update struct {
+			Providers map[string]struct {
+				Enabled *bool `json:"enabled"`
+			} `json:"providers"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+			http.Error(w, fmt.Sprintf("parse request: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		// Update config
+		changed := false
+		for provider, settings := range update.Providers {
+			if settings.Enabled == nil {
+				continue
+			}
+
+			switch provider {
+			case "kimi":
+				if s.config.Providers.Kimi.Enabled != *settings.Enabled {
+					s.config.Providers.Kimi.Enabled = *settings.Enabled
+					changed = true
+				}
+			case "zai":
+				if s.config.Providers.Zai.Enabled != *settings.Enabled {
+					s.config.Providers.Zai.Enabled = *settings.Enabled
+					changed = true
+				}
+			case "codex":
+				if s.config.Providers.Codex.Enabled != *settings.Enabled {
+					s.config.Providers.Codex.Enabled = *settings.Enabled
+					changed = true
+				}
+			case "claude":
+				if s.config.Providers.Claude.Enabled != *settings.Enabled {
+					s.config.Providers.Claude.Enabled = *settings.Enabled
+					changed = true
+				}
+			}
+		}
+
+		// Save to file if changed
+		if changed {
+			if err := s.config.Save(s.configPath); err != nil {
+				http.Error(w, fmt.Sprintf("save config: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (s *Server) Start() error {
@@ -108,7 +200,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	server, err := NewServer(config)
+	server, err := NewServer(config, *configPath)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}

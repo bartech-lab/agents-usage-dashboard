@@ -49,20 +49,31 @@ func (s *Scheduler) fetchAll() {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	// Fetch all providers (always attempt, remove providers from config to disable)
-	kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
-	s.cache.Kimi = s.resolveProviderResult(kimiData, kimiErr, s.cache.Kimi)
+	// Fetch Kimi (if enabled)
+	if s.config.Providers.Kimi.Enabled {
+		kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
+		s.cache.Kimi = s.resolveProviderResult(kimiData, kimiErr, s.cache.Kimi)
+	}
 
-	zaiData, zaiErr := fetchZAI(s.client, s.config.Providers.Zai.APIKey)
-	s.cache.Zai = s.resolveProviderResult(zaiData, zaiErr, s.cache.Zai)
+	// Fetch ZAI (if enabled)
+	if s.config.Providers.Zai.Enabled {
+		zaiData, zaiErr := fetchZAI(s.client, s.config.Providers.Zai.APIKey)
+		s.cache.Zai = s.resolveProviderResult(zaiData, zaiErr, s.cache.Zai)
+	}
 
-	codexData, codexErr := s.fetchCodex()
-	s.cache.Codex = s.resolveProviderResult(codexData, codexErr, s.cache.Codex)
+	// Fetch Codex (if enabled)
+	if s.config.Providers.Codex.Enabled {
+		codexData, codexErr := s.fetchCodex()
+		s.cache.Codex = s.resolveProviderResult(codexData, codexErr, s.cache.Codex)
+	}
 
-	claudeData, claudeOrg, claudeErr := fetchClaude(s.client, flattenCookies(s.config.Providers.Claude.Cookies), s.claudeOrgID)
-	s.cache.Claude = s.resolveProviderResult(claudeData, claudeErr, s.cache.Claude)
-	if claudeErr == nil && claudeOrg != nil && strings.TrimSpace(*claudeOrg) != "" {
-		s.claudeOrgID = claudeOrg
+	// Fetch Claude (if enabled)
+	if s.config.Providers.Claude.Enabled {
+		claudeData, claudeOrg, claudeErr := fetchClaude(s.client, flattenCookies(s.config.Providers.Claude.Cookies), s.claudeOrgID)
+		s.cache.Claude = s.resolveProviderResult(claudeData, claudeErr, s.cache.Claude)
+		if claudeErr == nil && claudeOrg != nil && strings.TrimSpace(*claudeOrg) != "" {
+			s.claudeOrgID = claudeOrg
+		}
 	}
 
 	s.cache.LastFetch = now.Format(time.RFC3339)

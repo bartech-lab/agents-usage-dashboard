@@ -18,6 +18,7 @@ providers:
   # Kimi provider configuration (cookie-based auth)
   # Requires the kimi-auth cookie from kimi.com
   kimi:
+    enabled: true
     cookies:
       "kimi.com":
         "kimi-auth": "${KIMI_AUTH_TOKEN}"
@@ -26,12 +27,14 @@ providers:
   # Get your API key from: https://z.ai/manage-apikey/apikey-list
   # Format: id.secret (two parts separated by a dot)
   zai:
+    enabled: true
     api_key: "${ZAI_API_KEY}"
 
   # Codex provider configuration (OAuth tokens)
   # Install Codex CLI and run: codex login
   # See docs/codex-oauth.md for detailed setup
   codex:
+    enabled: true
     oauth:
       token_file: "${HOME}/.codex/auth.json"
 
@@ -40,6 +43,7 @@ providers:
   # Extract cookies from claude.ai after logging in
   # Remove this section to disable Claude
   claude:
+    enabled: false
     cookies:
       "claude.ai":
         "sessionKey": "${CLAUDE_SESSION_KEY}"
@@ -92,6 +96,7 @@ providers:
 # server_port: 8777
 # providers:
 #   zai:
+#     enabled: true
 #     api_key: "${ZAI_API_KEY}"
 
 # Example with All Providers:
@@ -100,15 +105,19 @@ providers:
 # server_port: 8777
 # providers:
 #   kimi:
+#     enabled: true
 #     cookies:
 #       "kimi.com":
 #         "kimi-auth": "${KIMI_AUTH_TOKEN}"
 #   zai:
+#     enabled: true
 #     api_key: "${ZAI_API_KEY}"
 #   codex:
+#     enabled: true
 #     oauth:
 #       token_file: "${HOME}/.codex/auth.json"
 #   claude:
+#     enabled: false
 #     cookies:
 #       "claude.ai":
 #         "sessionKey": "${CLAUDE_SESSION_KEY}"

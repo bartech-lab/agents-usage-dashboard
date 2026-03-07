@@ -204,6 +204,113 @@
       animation: spin 1s linear infinite
     }
 
+    /* Provider Toggle Buttons */
+    .provider-toggles {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 12px;
+    }
+
+    .provider-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--t3);
+      font-family: var(--body);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .provider-toggle:hover {
+      border-color: var(--t2);
+      color: var(--t2);
+    }
+
+    .provider-toggle.active {
+      border-color: transparent;
+    }
+
+    .provider-toggle.active[data-provider="kimi"] {
+      background: var(--kimi-m);
+      color: var(--kimi);
+    }
+
+    .provider-toggle.active[data-provider="zai"] {
+      background: var(--zai-m);
+      color: var(--zai);
+    }
+
+    .provider-toggle.active[data-provider="codex"] {
+      background: var(--codex-m);
+      color: var(--codex);
+    }
+
+    .provider-toggle.active[data-provider="claude"] {
+      background: var(--claude-m);
+      color: var(--claude);
+    }
+
+    .provider-toggle .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Mobile menu for toggles */
+    @media (max-width: 768px) {
+      .provider-toggles {
+        display: none;
+        position: absolute;
+        top: 60px;
+        right: 24px;
+        flex-direction: column;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px;
+        z-index: 100;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .provider-toggles.show {
+        display: flex;
+      }
+
+      .provider-toggle {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--t2);
+        cursor: pointer;
+        font-size: 14px;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .mobile-menu-btn {
+        display: none;
+      }
+    }
+
     /* Setup banner */
     .setup-banner {
       background: var(--card);
@@ -652,6 +759,25 @@
         </div>
       </div>
       <div class="hdr-right">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Toggle providers">☰</button>
+        <div class="provider-toggles" id="providerToggles">
+          <button class="provider-toggle active" data-provider="kimi" onclick="toggleProvider('kimi')">
+            <span class="dot"></span>
+            <span>Kimi</span>
+          </button>
+          <button class="provider-toggle active" data-provider="zai" onclick="toggleProvider('zai')">
+            <span class="dot"></span>
+            <span>ZAI</span>
+          </button>
+          <button class="provider-toggle active" data-provider="codex" onclick="toggleProvider('codex')">
+            <span class="dot"></span>
+            <span>Codex</span>
+          </button>
+          <button class="provider-toggle" data-provider="claude" onclick="toggleProvider('claude')">
+            <span class="dot"></span>
+            <span>Claude</span>
+          </button>
+        </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="last-ts" id="nextRefresh" style="color:var(--t4)"></span>
           <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
@@ -746,6 +872,91 @@
       const pulse = (!off && status === 'ok') ? 'animation:pulse 2s ease-in-out infinite;' : '';
       return `<span class="dot dot-${size}" style="background:${fill};${glow}${pulse}"></span>`;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Provider Toggle Functions
+    // ═══════════════════════════════════════════════════════════════
+    let providerStates = {
+      kimi: true,
+      zai: true,
+      codex: true,
+      claude: false
+    };
+
+    async function loadToggleStates() {
+      try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        
+        providerStates.kimi = config.providers.kimi.enabled;
+        providerStates.zai = config.providers.zai.enabled;
+        providerStates.codex = config.providers.codex.enabled;
+        providerStates.claude = config.providers.claude.enabled;
+        
+        updateToggleButtons();
+      } catch (error) {
+        console.error('Failed to load toggle states:', error);
+      }
+    }
+
+    function updateToggleButtons() {
+      const buttons = document.querySelectorAll('.provider-toggle');
+      buttons.forEach(btn => {
+        const provider = btn.dataset.provider;
+        const isEnabled = providerStates[provider];
+        
+        if (isEnabled) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    async function toggleProvider(provider) {
+      const newState = !providerStates[provider];
+      
+      try {
+        const response = await fetch('/api/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            providers: {
+              [provider]: { enabled: newState }
+            }
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        // Update local state
+        providerStates[provider] = newState;
+        updateToggleButtons();
+        
+        // Refresh data to show/hide provider
+        await fetch('/api/refresh');
+        fetchData();
+        
+      } catch (error) {
+        console.error(`Failed to toggle ${provider}:`, error);
+      }
+    }
+
+    function toggleMobileMenu() {
+      const menu = document.getElementById('providerToggles');
+      menu.classList.toggle('show');
+    }
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('providerToggles');
+      const btn = document.querySelector('.mobile-menu-btn');
+      if (!menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.remove('show');
+      }
+    });
 
     // ═══════════════════════════════════════════════════════════════
     // Data fetching
@@ -846,9 +1057,13 @@
 
       const anim = firstRender ? 'fade-in' : '';
 
-      // Agent cards (always shown)
+      // Agent cards (only enabled providers)
       html += `<div class="agents-grid ${anim} d4">`;
-      AGENTS.forEach(id => { html += agentCard(id, state[id] || { status: 'offline', error: 'No data yet' }); });
+      AGENTS.forEach(id => {
+        if (providerStates[id]) {
+          html += agentCard(id, state[id] || { status: 'offline', error: 'No data yet' });
+        }
+      });
       html += `</div>`;
 
       // Chart (Codex daily breakdown)
@@ -1044,9 +1259,11 @@
       }
     });
 
-    // Initial fetch and start polling
-    fetchData().then(() => {
-      startPolling();
+    // Load toggle states, then fetch data and start polling
+    loadToggleStates().then(() => {
+      fetchData().then(() => {
+        startPolling();
+      });
     });
   </script>
 </body>
