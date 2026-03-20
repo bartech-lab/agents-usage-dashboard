@@ -13,16 +13,6 @@ config.yaml
 go.work
 agents-dashboard
 
-# Python (legacy)
-__pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
-.pytest_cache/
-
 # Docker
 *.log
 
