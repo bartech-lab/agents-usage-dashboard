@@ -335,8 +335,6 @@ go run -race .
 
 This project is a complete Go rewrite of [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard), which was a Python/Docker implementation with Firefox automation. The original used a Firefox container with automatic cookie extraction. This Go version replaces that with a simpler single-binary approach that requires manual credential configuration.
 
-The original Python code is preserved in `legacy/` for historical reference.
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.

@@ -265,5 +265,3 @@ This project is a complete rewrite in Go of the original Python/Docker implement
 The original Python version was a Docker-based solution with Firefox container for cookie management. This Go version replaces that architecture with a simpler, single-binary approach that's ~10x more resource efficient.
 
 **Original project:** [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard)
-
-The Python code is preserved in `legacy/` for historical reference.
