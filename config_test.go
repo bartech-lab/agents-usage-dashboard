@@ -166,9 +166,8 @@ providers:
 			content: `
 providers:
   codex:
-    cookies:
-      "chatgpt.com":
-        "__Secure-next-auth.session-token": "test-token"
+    oauth:
+      token_file: /tmp/test-codex-auth.json
 `,
 		},
 		{

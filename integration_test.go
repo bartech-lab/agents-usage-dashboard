@@ -10,6 +10,8 @@ import (
 	stdhttp "net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -484,7 +486,8 @@ func TestSchedulerFetchAll_Integration(t *testing.T) {
 	providers := newProviderTestServers(false)
 	defer providers.close()
 
-	scheduler := NewScheduler(newIntegrationConfig(), newIntegrationMockHTTPClient(providers.servers()))
+	tokenFile := writeIntegrationCodexTokenFile(t)
+	scheduler := NewScheduler(newIntegrationConfigWithTestingTokenFile(tokenFile), newIntegrationMockHTTPClient(providers.servers()))
 	scheduler.fetchAll()
 
 	cache := scheduler.GetCache()
@@ -501,7 +504,8 @@ func TestSchedulerFetchAll_StaleDataPreserved(t *testing.T) {
 	defer providers.close()
 
 	client := newIntegrationMockHTTPClient(providers.servers())
-	scheduler := NewScheduler(newIntegrationConfig(), client)
+	tokenFile := writeIntegrationCodexTokenFile(t)
+	scheduler := NewScheduler(newIntegrationConfigWithTestingTokenFile(tokenFile), client)
 
 	scheduler.fetchAll()
 	first := scheduler.GetCache()
@@ -531,17 +535,34 @@ func TestSchedulerFetchAll_StaleDataPreserved(t *testing.T) {
 }
 
 func newIntegrationConfig() *Config {
+	return newIntegrationConfigWithTestingTokenFile("")
+}
+
+func newIntegrationConfigWithTestingTokenFile(tokenFile string) *Config {
 	return &Config{
 		RefreshInterval: 2 * time.Minute,
 		Providers: ProvidersConfig{
 			Codex: CodexProviderConfig{
 				Enabled: true,
+				OAuth:   &OAuthConfig{TokenFile: tokenFile},
 			},
 			Kimi:   ProviderAuth{Enabled: true, Cookies: map[string]map[string]string{"www.kimi.com": {"kimi-auth": "token"}}},
 			Claude: ProviderAuth{Enabled: true, Cookies: map[string]map[string]string{"claude.ai": {"sessionKey": "cookie"}}},
 			Zai:    ZAIConfig{Enabled: true, APIKey: "kid.secret"},
 		},
 	}
+}
+
+func writeIntegrationCodexTokenFile(t *testing.T) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "codex-auth.json")
+	content := `{"tokens":{"access_token":"test-token","account_id":"test-account"},"last_refresh":"2026-03-20T08:00:00Z"}`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write integration codex token file: %v", err)
+	}
+
+	return path
 }
 
 type providerTestServers struct {

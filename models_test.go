@@ -88,6 +88,38 @@ func TestProviderData_JSONMarshalUnmarshal(t *testing.T) {
 	}
 }
 
+func TestCredits_UnmarshalStringBalance(t *testing.T) {
+	input := []byte(`{"balance":"0","has_credits":false}`)
+
+	var credits Credits
+	if err := json.Unmarshal(input, &credits); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v", err)
+	}
+
+	if credits.Balance != 0 {
+		t.Fatalf("credits.Balance = %v, want 0", credits.Balance)
+	}
+	if credits.HasCredits {
+		t.Fatalf("credits.HasCredits = true, want false")
+	}
+}
+
+func TestCredits_UnmarshalNumericBalance(t *testing.T) {
+	input := []byte(`{"balance":12.5,"has_credits":true}`)
+
+	var credits Credits
+	if err := json.Unmarshal(input, &credits); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v", err)
+	}
+
+	if credits.Balance != 12.5 {
+		t.Fatalf("credits.Balance = %v, want 12.5", credits.Balance)
+	}
+	if !credits.HasCredits {
+		t.Fatalf("credits.HasCredits = false, want true")
+	}
+}
+
 func TestUsageWindow_JSONOmitempty(t *testing.T) {
 	window := UsageWindow{UsagePct: 10, RemainingSeconds: 5}
 

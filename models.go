@@ -1,6 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -27,18 +31,49 @@ type Credits struct {
 	HasCredits bool    `json:"has_credits"`
 }
 
+func (c *Credits) UnmarshalJSON(data []byte) error {
+	type rawCredits struct {
+		Balance    any  `json:"balance"`
+		HasCredits bool `json:"has_credits"`
+	}
+
+	var raw rawCredits
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	c.HasCredits = raw.HasCredits
+
+	switch value := raw.Balance.(type) {
+	case nil:
+		c.Balance = 0
+	case float64:
+		c.Balance = value
+	case string:
+		parsed, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse credits.balance %q: %w", value, err)
+		}
+		c.Balance = parsed
+	default:
+		return &json.UnmarshalTypeError{Value: "credits.balance", Type: reflect.TypeOf(c.Balance)}
+	}
+
+	return nil
+}
+
 // ProviderData holds usage data for a specific AI provider
 type ProviderData struct {
-	Status         string          `json:"status"`
-	Plan           string          `json:"plan,omitempty"`
-	LimitReached   bool            `json:"limit_reached,omitempty"` // Codex only
-	Session        *UsageWindow    `json:"session,omitempty"`
-	Weekly         *UsageWindow    `json:"weekly,omitempty"`
-	Models         *ClaudeModels   `json:"models,omitempty"`    // Claude only
-	Credits        *Credits        `json:"credits,omitempty"`   // Codex only
-	DailyBreakdown []DailyEntry    `json:"daily_breakdown,omitempty"`
-	Error          string          `json:"error,omitempty"`
-	LastSuccess    string          `json:"last_success,omitempty"`
+	Status         string        `json:"status"`
+	Plan           string        `json:"plan,omitempty"`
+	LimitReached   bool          `json:"limit_reached,omitempty"` // Codex only
+	Session        *UsageWindow  `json:"session,omitempty"`
+	Weekly         *UsageWindow  `json:"weekly,omitempty"`
+	Models         *ClaudeModels `json:"models,omitempty"`  // Claude only
+	Credits        *Credits      `json:"credits,omitempty"` // Codex only
+	DailyBreakdown []DailyEntry  `json:"daily_breakdown,omitempty"`
+	Error          string        `json:"error,omitempty"`
+	LastSuccess    string        `json:"last_success,omitempty"`
 }
 
 // DailyEntry represents a single day's usage data
