@@ -9,6 +9,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='6' fill='%2314151a' stroke='%2322d3ee' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%2322d3ee'/%3E%3C/svg%3E">
   <style>
     /* ========================================
        THEME SYSTEM
@@ -159,6 +160,49 @@
       font-size: 14px;
       font-weight: 700;
       color: var(--text-secondary)
+    }
+
+    .logo-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--codex);
+      position: relative;
+      animation: logo-gradient-pulse 3s ease-in-out infinite;
+    }
+
+    .logo-dot::after {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid var(--codex);
+      opacity: 0.5;
+      animation: logo-ring-pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes logo-gradient-pulse {
+      0%, 100% { 
+        background: var(--codex);
+        box-shadow: 0 0 12px var(--codex-d);
+      }
+      50% { 
+        background: var(--zai);
+        box-shadow: 0 0 12px var(--zai-d);
+      }
+    }
+
+    @keyframes logo-ring-pulse {
+      0%, 100% { 
+        transform: scale(1);
+        opacity: 0.5;
+        border-color: var(--codex);
+      }
+      50% { 
+        transform: scale(1.8);
+        opacity: 0;
+        border-color: var(--zai);
+      }
     }
 
     h1 {
@@ -759,7 +803,7 @@
     <!-- Header -->
     <header class="fade-in d1">
       <div class="hdr-left">
-        <div class="logo">&#x25A3;</div>
+        <div class="logo"><div class="logo-dot"></div></div>
         <div>
           <h1>Agents Usage Monitor</h1>
         </div>
