@@ -55,7 +55,7 @@ This follows monitoring dashboard best practices: information hierarchy over dec
 # Clone and build (creates self-contained ~15MB binary)
 git clone https://github.com/bartech-lab/agents-usage-dashboard.git
 cd AgentsUsageDashboard
-go build -o agents-dashboard
+go build -trimpath -ldflags="-s -w" -o agents-dashboard
 
 # Create config
 cp config.yaml.example config.yaml
@@ -291,7 +291,7 @@ The dashboard implements a robust auto-refresh that works even in background tab
 go test ./...
 
 # Build optimized binary
-go build -ldflags "-s -w" -o agents-dashboard
+go build -trimpath -ldflags="-s -w" -o agents-dashboard
 
 # Run with race detection
 go run -race .

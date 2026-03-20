@@ -237,7 +237,7 @@ type UsageWindow struct {
 
 ### Build
 ```bash
-go build -o agents-dashboard
+go build -trimpath -ldflags="-s -w" -o agents-dashboard
 ```
 
 ### Run
