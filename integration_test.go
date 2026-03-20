@@ -492,7 +492,7 @@ func TestSchedulerFetchAll_Integration(t *testing.T) {
 
 	cache := scheduler.GetCache()
 	if cache.Codex.Status != "ok" || cache.Kimi.Status != "ok" || cache.Claude.Status != "ok" || cache.Zai.Status != "ok" {
-		t.Fatalf("expected all providers to be ok, got codex=%q kimi=%q claude=%q zai=%q", cache.Codex.Status, cache.Kimi.Status, cache.Claude.Status, cache.Zai.Status)
+		t.Fatalf("expected all providers to be ok, got zai=%q kimi=%q codex=%q claude=%q", cache.Zai.Status, cache.Kimi.Status, cache.Codex.Status, cache.Claude.Status)
 	}
 	if cache.LastFetch == "" || cache.NextRefreshAt == "" {
 		t.Fatalf("expected cache timestamps to be set")

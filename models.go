@@ -84,10 +84,10 @@ type DailyEntry struct {
 
 // CacheData holds cached data for all providers
 type CacheData struct {
-	Codex         *ProviderData `json:"codex"`
-	Kimi          *ProviderData `json:"kimi"`
-	Claude        *ProviderData `json:"claude"`
 	Zai           *ProviderData `json:"zai"`
+	Kimi          *ProviderData `json:"kimi"`
+	Codex         *ProviderData `json:"codex"`
+	Claude        *ProviderData `json:"claude"`
 	LastFetch     string        `json:"last_fetch"`
 	NextRefreshAt string        `json:"next_refresh_at"`
 }

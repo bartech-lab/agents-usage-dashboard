@@ -768,13 +768,13 @@
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Toggle providers">☰</button>
         <div class="provider-toggles" id="providerToggles">
-          <button class="provider-toggle active" data-provider="kimi" onclick="toggleProvider('kimi')">
-            <span class="dot"></span>
-            <span>Kimi</span>
-          </button>
           <button class="provider-toggle active" data-provider="zai" onclick="toggleProvider('zai')">
             <span class="dot"></span>
             <span>ZAI</span>
+          </button>
+          <button class="provider-toggle active" data-provider="kimi" onclick="toggleProvider('kimi')">
+            <span class="dot"></span>
+            <span>Kimi</span>
           </button>
           <button class="provider-toggle active" data-provider="codex" onclick="toggleProvider('codex')">
             <span class="dot"></span>
@@ -817,8 +817,8 @@
     let pollInterval = null;
     let countdownInterval = null;
 
-    const AGENTS = ['kimi', 'zai', 'codex', 'claude'];
-    const NAMES = { codex: 'Codex', kimi: 'Kimi', claude: 'Claude', zai: 'Z' };
+    const AGENTS = ['zai', 'kimi', 'codex', 'claude'];
+    const NAMES = { zai: 'Z', kimi: 'Kimi', codex: 'Codex', claude: 'Claude' };
     const COLORS = {
       codex: { solid: '#06b6d4', muted: 'rgba(6,182,212,0.15)', dimmed: 'rgba(6,182,212,0.3)' },
       kimi: { solid: '#f97316', muted: 'rgba(249,115,22,0.15)', dimmed: 'rgba(249,115,22,0.3)' },
@@ -884,8 +884,8 @@
     // Provider Toggle Functions
     // ═══════════════════════════════════════════════════════════════
     let providerStates = {
-      kimi: true,
       zai: true,
+      kimi: true,
       codex: true,
       claude: false
     };
@@ -895,8 +895,8 @@
         const response = await fetch('/api/config');
         const config = await response.json();
         
-        providerStates.kimi = config.providers.kimi.enabled;
         providerStates.zai = config.providers.zai.enabled;
+        providerStates.kimi = config.providers.kimi.enabled;
         providerStates.codex = config.providers.codex.enabled;
         providerStates.claude = config.providers.claude.enabled;
         
@@ -1133,10 +1133,10 @@
       <h2>Waiting for data&hellip;</h2>
       <p>Open <a href="//${location.hostname}:5800" target="_blank">Firefox GUI (:5800)</a> and log in to all services:</p>
       <div class="services">
-        <span><span class="svc-dot" style="background:var(--codex)"></span>chatgpt.com</span>
-        <span><span class="svc-dot" style="background:var(--kimi)"></span>kimi.com</span>
-        <span><span class="svc-dot" style="background:var(--claude)"></span>claude.ai</span>
         <span><span class="svc-dot" style="background:var(--zai)"></span>z.ai</span>
+        <span><span class="svc-dot" style="background:var(--kimi)"></span>kimi.com</span>
+        <span><span class="svc-dot" style="background:var(--codex)"></span>chatgpt.com</span>
+        <span><span class="svc-dot" style="background:var(--claude)"></span>claude.ai</span>
       </div>
     </div>`;
     }

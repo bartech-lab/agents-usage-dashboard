@@ -19,8 +19,8 @@ type Config struct {
 
 // ProvidersConfig contains authentication settings for all providers
 type ProvidersConfig struct {
-	Kimi   ProviderAuth        `yaml:"kimi"`
 	Zai    ZAIConfig           `yaml:"zai"`
+	Kimi   ProviderAuth        `yaml:"kimi"`
 	Codex  CodexProviderConfig `yaml:"codex"`
 	Claude ProviderAuth        `yaml:"claude"`
 }

@@ -21,8 +21,8 @@ Agents Usage Monitor is a self-contained Go binary that monitors AI assistant us
 │                                               ↓         │
 │                                      ┌────────────────┐ │
 │                                      │ External APIs  │ │
-│                                      │ • kimi.com     │ │
 │                                      │ • z.ai         │ │
+│                                      │ • kimi.com     │ │
 │                                      │ • chatgpt.com  │ │
 │                                      │ • claude.ai    │ │
 │                                      └───────┬────────┘ │
@@ -77,8 +77,8 @@ Agents Usage Monitor is a self-contained Go binary that monitors AI assistant us
 - Atomic fetch lock prevents concurrent refreshes
 
 **Provider Fetching:**
-- **Kimi**: Cookie-based auth (`kimi-auth` token)
 - **Z-AI**: API key auth (JWT generation)
+- **Kimi**: Cookie-based auth (`kimi-auth` token)
 - **Codex**: Cookie-based auth (ChatGPT session)
 - **Claude**: Cookie-based auth (session key)
 
@@ -151,8 +151,8 @@ setInterval(() => {
 ### CacheData
 ```go
 type CacheData struct {
-    Kimi          *ProviderData
     Zai           *ProviderData
+    Kimi          *ProviderData
     Codex         *ProviderData
     Claude        *ProviderData
     LastFetch     string

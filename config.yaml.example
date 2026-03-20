@@ -15,6 +15,13 @@ server_port: 8777
 # Remove a provider section completely to disable it
 providers:
 
+  # ZAI provider configuration (API key-based auth)
+  # Get your API key from: https://z.ai/manage-apikey/apikey-list
+  # Format: id.secret (two parts separated by a dot)
+  zai:
+    enabled: true
+    api_key: "${ZAI_API_KEY}"
+
   # Kimi provider configuration (cookie-based auth)
   # Requires the kimi-auth cookie from kimi.com
   kimi:
@@ -22,13 +29,6 @@ providers:
     cookies:
       "kimi.com":
         "kimi-auth": "${KIMI_AUTH_TOKEN}"
-
-  # ZAI provider configuration (API key-based auth)
-  # Get your API key from: https://z.ai/manage-apikey/apikey-list
-  # Format: id.secret (two parts separated by a dot)
-  zai:
-    enabled: true
-    api_key: "${ZAI_API_KEY}"
 
   # Codex provider configuration (OAuth tokens)
   # Install Codex CLI and run: codex login
@@ -52,8 +52,8 @@ providers:
 # ---------------------------
 # Create a .env file or export environment variables:
 #
-#   export KIMI_AUTH_TOKEN="your-kimi-auth-token"
 #   export ZAI_API_KEY="your-id.your-secret"
+#   export KIMI_AUTH_TOKEN="your-kimi-auth-token"
 #   export CLAUDE_SESSION_KEY="your-claude-session-key"
 #
 # Codex uses OAuth tokens from ~/.codex/auth.json (no env vars needed)
@@ -104,14 +104,14 @@ providers:
 # refresh_interval: 5m
 # server_port: 8777
 # providers:
+#   zai:
+#     enabled: true
+#     api_key: "${ZAI_API_KEY}"
 #   kimi:
 #     enabled: true
 #     cookies:
 #       "kimi.com":
 #         "kimi-auth": "${KIMI_AUTH_TOKEN}"
-#   zai:
-#     enabled: true
-#     api_key: "${ZAI_API_KEY}"
 #   codex:
 #     enabled: true
 #     oauth:

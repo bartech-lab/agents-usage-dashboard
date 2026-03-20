@@ -206,8 +206,8 @@ let state = null;
 let pollTimer = null;
 let firstRender = true;
 
-const AGENTS = ['codex', 'kimi', 'claude', 'zai'];
-const NAMES = { codex: 'Codex', kimi: 'Kimi', claude: 'Claude', zai: 'Z' };
+const AGENTS = ['zai', 'kimi', 'codex', 'claude'];
+const NAMES = { zai: 'Z', kimi: 'Kimi', codex: 'Codex', claude: 'Claude' };
 const COLORS = {
   codex: { solid: '#06b6d4', muted: 'rgba(6,182,212,0.15)', dimmed: 'rgba(6,182,212,0.3)' },
   kimi:  { solid: '#f97316', muted: 'rgba(249,115,22,0.15)', dimmed: 'rgba(249,115,22,0.3)' },
@@ -382,10 +382,10 @@ function renderSetup() {
       <h2>Waiting for data&hellip;</h2>
       <p>Open <a href="//${location.hostname}:5800" target="_blank">Firefox GUI (:5800)</a> and log in to all services:</p>
       <div class="services">
-        <span><span class="svc-dot" style="background:var(--codex)"></span>chatgpt.com</span>
-        <span><span class="svc-dot" style="background:var(--kimi)"></span>kimi.com</span>
-        <span><span class="svc-dot" style="background:var(--claude)"></span>claude.ai</span>
         <span><span class="svc-dot" style="background:var(--zai)"></span>z.ai</span>
+        <span><span class="svc-dot" style="background:var(--kimi)"></span>kimi.com</span>
+        <span><span class="svc-dot" style="background:var(--codex)"></span>chatgpt.com</span>
+        <span><span class="svc-dot" style="background:var(--claude)"></span>claude.ai</span>
       </div>
     </div>`;
 }

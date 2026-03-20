@@ -1,6 +1,6 @@
 # Agents Usage Monitor
 
-Self-contained Go binary for monitoring AI assistant usage across **Kimi Code**, **Z-AI**, **OpenAI Codex**, and **Claude**.
+Self-contained Go binary for monitoring AI assistant usage across **Z-AI**, **Kimi Code**, **OpenAI Codex**, and **Claude**.
 
 > **Based on:** [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard) - A complete Go rewrite of the original Python/Docker implementation with Firefox/VNC automation. This version uses manual credential configuration and requires no Docker or browser containers.
 
@@ -12,8 +12,8 @@ Dashboard showing all 4 AI assistants connected with real-time usage monitoring 
 
 | Provider | Status | Auth Method | Notes |
 |----------|--------|-------------|-------|
-| **Kimi** | ✅ Working | Cookie (JWT) | Session + weekly usage |
 | **Z-AI** | ✅ Working | API Key | Session + weekly usage |
+| **Kimi** | ✅ Working | Cookie (JWT) | Session + weekly usage |
 | **Codex** | ✅ Working | OAuth | Requires Codex CLI setup (see [docs/codex-oauth.md](docs/codex-oauth.md)) |
 | **Claude** | ⚠️ Blocked | Cookie | Cloudflare blocking (may not work) |
 
@@ -88,18 +88,6 @@ Open http://localhost:8777
 
 ## Provider Configuration
 
-### Kimi (Working ✅)
-
-**Method:** Cookie-based authentication
-
-1. Log in to kimi.com in your browser
-2. Open DevTools → Application → Cookies → kimi.com
-3. Copy the `kimi-auth` cookie value
-4. Add to `.env`:
-   ```bash
-   KIMI_AUTH_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...
-   ```
-
 ### Z-AI (Working ✅)
 
 **Method:** API key authentication
@@ -112,6 +100,18 @@ Open http://localhost:8777
    ```
    
 Format: `id.secret` (two parts separated by a dot)
+
+### Kimi (Working ✅)
+
+**Method:** Cookie-based authentication
+
+1. Log in to kimi.com in your browser
+2. Open DevTools → Application → Cookies → kimi.com
+3. Copy the `kimi-auth` cookie value
+4. Add to `.env`:
+   ```bash
+   KIMI_AUTH_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...
+   ```
 
 ### Codex (Working ✅)
 
@@ -163,12 +163,12 @@ We keep Claude in the codebase for future enablement if Cloudflare issues are re
 refresh_interval: 5m
 server_port: 8777
 providers:
+  zai:
+    api_key: "${ZAI_API_KEY}"
   kimi:
     cookies:
       "kimi.com":
         "kimi-auth": "${KIMI_AUTH_TOKEN}"
-  zai:
-    api_key: "${ZAI_API_KEY}"
   codex:
     oauth:
       token_file: "${HOME}/.codex/auth.json"
@@ -191,7 +191,7 @@ Control which providers are monitored directly from the dashboard header:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  ⧫  Agents Usage Monitor    [● Kimi] [● ZAI] [● Codex] [○ Claude]  ↻ │
+│  ⧫  Agents Usage Monitor    [● ZAI] [● Kimi] [● Codex] [○ Claude]  ↻ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -211,9 +211,9 @@ Control which providers are monitored directly from the dashboard header:
 Toggle states are saved to `config.yaml`:
 ```yaml
 providers:
-  kimi:
-    enabled: true    # Toggle ON
   zai:
+    enabled: true    # Toggle ON
+  kimi:
     enabled: true    # Toggle ON
   codex:
     enabled: true    # Toggle ON
@@ -309,7 +309,7 @@ go run -race .
 │  └──────────┘                    └──┬─┘ │
 │       ↑                             │   │
 │       │    External APIs ◄──────────┘   │
-│       │  (kimi, z.ai, chatgpt, claude)  │
+│       │  (z.ai, kimi, chatgpt, claude)  │
 │       └─────────────────────────────────┤
 │              Scheduler (5min)           │
 │                                         │

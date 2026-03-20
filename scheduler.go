@@ -28,10 +28,10 @@ func NewScheduler(cfg *Config, client tls_client.HttpClient) *Scheduler {
 		config: cfg,
 		client: client,
 		cache: &CacheData{
-			Codex:  &ProviderData{Status: "pending"},
-			Kimi:   &ProviderData{Status: "pending"},
-			Claude: &ProviderData{Status: "pending"},
 			Zai:    &ProviderData{Status: "pending"},
+			Kimi:   &ProviderData{Status: "pending"},
+			Codex:  &ProviderData{Status: "pending"},
+			Claude: &ProviderData{Status: "pending"},
 		},
 		stopChan: make(chan struct{}),
 	}
@@ -49,16 +49,16 @@ func (s *Scheduler) fetchAll() {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	// Fetch Kimi (if enabled)
-	if s.config.Providers.Kimi.Enabled {
-		kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
-		s.cache.Kimi = s.resolveProviderResult(kimiData, kimiErr, s.cache.Kimi)
-	}
-
 	// Fetch ZAI (if enabled)
 	if s.config.Providers.Zai.Enabled {
 		zaiData, zaiErr := fetchZAI(s.client, s.config.Providers.Zai.APIKey)
 		s.cache.Zai = s.resolveProviderResult(zaiData, zaiErr, s.cache.Zai)
+	}
+
+	// Fetch Kimi (if enabled)
+	if s.config.Providers.Kimi.Enabled {
+		kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
+		s.cache.Kimi = s.resolveProviderResult(kimiData, kimiErr, s.cache.Kimi)
 	}
 
 	// Fetch Codex (if enabled)

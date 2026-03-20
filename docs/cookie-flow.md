@@ -62,10 +62,10 @@ providers:
 
 | Provider | Domain | Cookie Name | Environment Variable |
 |----------|--------|-------------|---------------------|
+| **Z-AI** | z.ai | API Key (not cookie) | `ZAI_API_KEY` |
 | **Kimi** | kimi.com | `kimi-auth` | `KIMI_AUTH_TOKEN` |
 | **Codex** | chatgpt.com | `__Secure-next-auth.session-token` | `CODEX_SESSION_TOKEN` |
 | **Claude** | claude.ai | `sessionKey` | `CLAUDE_SESSION_KEY` |
-| **Z-AI** | z.ai | API Key (not cookie) | `ZAI_API_KEY` |
 
 ### Provider-Specific Notes
 
@@ -173,11 +173,11 @@ providers:
 Use this template in your `.env` file:
 
 ```bash
-# Kimi Code - Extract from kimi.com cookies
-KIMI_AUTH_TOKEN=your-kimi-jwt-token
-
 # Z-AI - Get from https://z.ai/manage-apikey/apikey-list
 ZAI_API_KEY=your-id.your-secret
+
+# Kimi Code - Extract from kimi.com cookies
+KIMI_AUTH_TOKEN=your-kimi-jwt-token
 
 # OpenAI Codex - Extract from chatgpt.com cookies
 CODEX_SESSION_TOKEN=your-session-token
@@ -192,9 +192,9 @@ Cookie-based authentication tokens have different lifespans:
 
 | Provider | Typical Lifetime | Refresh Recommendation |
 |----------|-----------------|----------------------|
+| Z-AI API Key | Months/Years | When revoked or rotated |
 | Kimi | Weeks/Months | When auth fails |
 | Codex | Days/Weeks | When auth fails |
 | Claude | Days/Weeks | When auth fails |
-| Z-AI API Key | Months/Years | When revoked or rotated |
 
 The dashboard will automatically detect authentication failures and display error status, prompting you to refresh credentials.

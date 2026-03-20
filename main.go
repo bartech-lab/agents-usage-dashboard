@@ -79,12 +79,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		// Return current config (without sensitive data)
 		type PublicConfig struct {
 			Providers struct {
-				Kimi struct {
-					Enabled bool `json:"enabled"`
-				} `json:"kimi"`
 				Zai struct {
 					Enabled bool `json:"enabled"`
 				} `json:"zai"`
+				Kimi struct {
+					Enabled bool `json:"enabled"`
+				} `json:"kimi"`
 				Codex struct {
 					Enabled bool `json:"enabled"`
 				} `json:"codex"`
@@ -95,8 +95,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		}
 
 		pub := PublicConfig{}
-		pub.Providers.Kimi.Enabled = s.config.Providers.Kimi.Enabled
 		pub.Providers.Zai.Enabled = s.config.Providers.Zai.Enabled
+		pub.Providers.Kimi.Enabled = s.config.Providers.Kimi.Enabled
 		pub.Providers.Codex.Enabled = s.config.Providers.Codex.Enabled
 		pub.Providers.Claude.Enabled = s.config.Providers.Claude.Enabled
 
@@ -123,14 +123,14 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			}
 
 			switch provider {
-			case "kimi":
-				if s.config.Providers.Kimi.Enabled != *settings.Enabled {
-					s.config.Providers.Kimi.Enabled = *settings.Enabled
-					changed = true
-				}
 			case "zai":
 				if s.config.Providers.Zai.Enabled != *settings.Enabled {
 					s.config.Providers.Zai.Enabled = *settings.Enabled
+					changed = true
+				}
+			case "kimi":
+				if s.config.Providers.Kimi.Enabled != *settings.Enabled {
+					s.config.Providers.Kimi.Enabled = *settings.Enabled
 					changed = true
 				}
 			case "codex":
