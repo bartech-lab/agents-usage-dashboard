@@ -1148,11 +1148,6 @@
 
       let html = '';
 
-      // Setup banner when no agents connected
-      if (!hasAny) {
-        html += renderSetup();
-      }
-
       const anim = firstRender ? 'fade-in' : '';
 
       // Agent cards (only enabled providers)
@@ -1171,20 +1166,6 @@
     // ═══════════════════════════════════════════════════════════════
     // Component renderers
     // ═══════════════════════════════════════════════════════════════
-    function renderSetup() {
-      return `
-    <div class="setup-banner">
-      <h2>Waiting for data&hellip;</h2>
-      <p>Open <a href="//${location.hostname}:5800" target="_blank">Firefox GUI (:5800)</a> and log in to all services:</p>
-      <div class="services">
-        <span><span class="svc-dot" style="background:var(--zai)"></span>z.ai</span>
-        <span><span class="svc-dot" style="background:var(--kimi)"></span>kimi.com</span>
-        <span><span class="svc-dot" style="background:var(--codex)"></span>chatgpt.com</span>
-        <span><span class="svc-dot" style="background:var(--claude)"></span>claude.ai</span>
-      </div>
-    </div>`;
-    }
-
     function summaryCard(label, value, unit, sub, status) {
       const color = status ? statusColor(status) : 'var(--text-primary)';
       return `
