@@ -1,12 +1,12 @@
 # Agents Usage Monitor
 
-Self-contained Go binary for monitoring AI assistant usage across **Z-AI**, **Kimi Code**, **OpenAI Codex**, and **Claude**.
+Self-contained Go binary for monitoring AI assistant usage across **Z-AI**, **Kimi Code**, **OpenAI Codex**, **Claude**, and **OpenCode Go**.
 
 > **Based on:** [konradozog-debug/AgentsUsageDashboard](https://github.com/konradozog-debug/AgentsUsageDashboard) - A complete Go rewrite of the original Python/Docker implementation with Firefox/VNC automation. This version uses manual credential configuration and requires no Docker or browser containers.
 
 ![Dashboard](docs/screenshot.png)
 
-Dashboard showing all 4 AI assistants connected with real-time usage monitoring and live countdown timer.
+Dashboard showing connected AI assistants with real-time usage monitoring and live countdown timer.
 
 ## Provider Status
 
@@ -16,12 +16,13 @@ Dashboard showing all 4 AI assistants connected with real-time usage monitoring 
 | **Kimi** | ✅ Working | Cookie (JWT) | Session + weekly usage |
 | **Codex** | ✅ Working | OAuth | Requires Codex CLI setup (see [docs/codex-oauth.md](docs/codex-oauth.md)) |
 | **Claude** | ⚠️ Blocked | Cookie | Cloudflare blocking (may not work) |
+| **OpenCode Go** | ✅ Working | Workspace + Cookie | Session + weekly + monthly usage |
 
 **Note:** Cookie-based Codex auth is deprecated. Use OAuth instead.
 
 ## Features
 
-- **Unified usage view** - Session and weekly usage for 4 AI assistants in one place
+- **Unified usage view** - Session, weekly, and monthly usage in one place
 - **Provider toggles** - Enable/disable providers instantly from the header bar
 - **Real-time monitoring** - Robust auto-refresh with background tab support
 - **Live countdown** - Shows exactly when data will refresh next
@@ -73,6 +74,10 @@ KIMI_AUTH_TOKEN=your-kimi-token
 
 # Optional - Claude (blocked by Cloudflare)
 CLAUDE_SESSION_KEY=
+
+# Optional - OpenCode Go
+OPENCODE_GO_WORKSPACE_ID=
+OPENCODE_GO_AUTH_COOKIE=
 
 # Codex - no env vars needed, uses OAuth tokens
 # See docs/codex-oauth.md for setup

@@ -154,6 +154,7 @@ func TestCacheData_JSONStructure(t *testing.T) {
 		Kimi:          &ProviderData{Status: "offline"},
 		Codex:         &ProviderData{Status: "ok", Plan: "plus"},
 		Claude:        &ProviderData{Status: "ok", Plan: "pro"},
+		OpenCodeGo:    &ProviderData{Status: "ok", Plan: "OpenCode Go"},
 		LastFetch:     "2026-03-04T17:00:00Z",
 		NextRefreshAt: "2026-03-04T17:05:00Z",
 	}
@@ -168,7 +169,7 @@ func TestCacheData_JSONStructure(t *testing.T) {
 		t.Fatalf("json.Unmarshal() error: %v", err)
 	}
 
-	for _, key := range []string{"zai", "kimi", "codex", "claude", "last_fetch", "next_refresh_at"} {
+	for _, key := range []string{"zai", "kimi", "codex", "claude", "opencodego", "last_fetch", "next_refresh_at"} {
 		if _, ok := decoded[key]; !ok {
 			t.Fatalf("expected key %q in marshaled JSON", key)
 		}

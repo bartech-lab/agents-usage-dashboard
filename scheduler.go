@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,27 +10,28 @@ import (
 )
 
 type Scheduler struct {
-	config      *Config
-	client      tls_client.HttpClient
-	cache       *CacheData
-	cacheMu     sync.RWMutex
-	fetchLock   atomic.Bool
-	ticker      *time.Ticker
-	stopChan    chan struct{}
-	stopOnce    sync.Once
-	claudeOrg   *string
-	claudeOrgID *string
+	providers       []Provider
+	refreshInterval time.Duration
+	client          tls_client.HttpClient
+	cache           *CacheData
+	cacheMu         sync.RWMutex
+	fetchLock       atomic.Bool
+	ticker          *time.Ticker
+	stopChan        chan struct{}
+	stopOnce        sync.Once
 }
 
-func NewScheduler(cfg *Config, client tls_client.HttpClient) *Scheduler {
+func NewScheduler(refreshInterval time.Duration, providers []Provider, client tls_client.HttpClient) *Scheduler {
 	return &Scheduler{
-		config: cfg,
-		client: client,
+		providers:       providers,
+		refreshInterval: refreshInterval,
+		client:          client,
 		cache: &CacheData{
-			Zai:    &ProviderData{Status: "pending"},
-			Kimi:   &ProviderData{Status: "pending"},
-			Codex:  &ProviderData{Status: "pending"},
-			Claude: &ProviderData{Status: "pending"},
+			Zai:        &ProviderData{Status: "pending"},
+			Kimi:       &ProviderData{Status: "pending"},
+			Codex:      &ProviderData{Status: "pending"},
+			Claude:     &ProviderData{Status: "pending"},
+			OpenCodeGo: &ProviderData{Status: "pending"},
 		},
 		stopChan: make(chan struct{}),
 	}
@@ -49,43 +49,18 @@ func (s *Scheduler) fetchAll() {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	// Fetch ZAI (if enabled)
-	if s.config.Providers.Zai.Enabled {
-		zaiData, zaiErr := fetchZAI(s.client, s.config.Providers.Zai.APIKey)
-		s.cache.Zai = s.resolveProviderResult(zaiData, zaiErr, s.cache.Zai)
-	}
-
-	// Fetch Kimi (if enabled)
-	if s.config.Providers.Kimi.Enabled {
-		kimiData, kimiErr := fetchKimi(s.client, s.config.Providers.Kimi)
-		s.cache.Kimi = s.resolveProviderResult(kimiData, kimiErr, s.cache.Kimi)
-	}
-
-	// Fetch Codex (if enabled)
-	if s.config.Providers.Codex.Enabled {
-		codexData, codexErr := s.fetchCodex()
-		s.cache.Codex = s.resolveProviderResult(codexData, codexErr, s.cache.Codex)
-	}
-
-	// Fetch Claude (if enabled)
-	if s.config.Providers.Claude.Enabled {
-		claudeData, claudeOrg, claudeErr := fetchClaude(s.client, flattenCookies(s.config.Providers.Claude.Cookies), s.claudeOrgID)
-		s.cache.Claude = s.resolveProviderResult(claudeData, claudeErr, s.cache.Claude)
-		if claudeErr == nil && claudeOrg != nil && strings.TrimSpace(*claudeOrg) != "" {
-			s.claudeOrgID = claudeOrg
+	for _, provider := range s.providers {
+		if !provider.IsEnabled() {
+			continue
 		}
+
+		data, err := provider.Fetch(s.client)
+		resolved := s.resolveProviderResult(data, err, s.getProviderCache(provider.ID()))
+		s.setProviderCache(provider.ID(), resolved)
 	}
 
 	s.cache.LastFetch = now.Format(time.RFC3339)
-	s.cache.NextRefreshAt = now.Add(s.config.RefreshInterval).Format(time.RFC3339)
-}
-
-func (s *Scheduler) fetchCodex() (*ProviderData, error) {
-	if s.config.Providers.Codex.OAuth == nil || s.config.Providers.Codex.OAuth.TokenFile == "" {
-		return nil, fmt.Errorf("codex oauth not configured (set codex.oauth.token_file in config.yaml)")
-	}
-
-	return fetchCodexViaOAuth(s.client, s.config.Providers.Codex.OAuth.TokenFile)
+	s.cache.NextRefreshAt = now.Add(s.refreshInterval).Format(time.RFC3339)
 }
 
 func (s *Scheduler) resolveProviderResult(data *ProviderData, err error, prev *ProviderData) *ProviderData {
@@ -112,7 +87,7 @@ func (s *Scheduler) resolveProviderResult(data *ProviderData, err error, prev *P
 func (s *Scheduler) Start() {
 	s.fetchAll()
 
-	s.ticker = time.NewTicker(s.config.RefreshInterval)
+	s.ticker = time.NewTicker(s.refreshInterval)
 	go func() {
 		for {
 			select {
@@ -139,7 +114,72 @@ func (s *Scheduler) GetCache() *CacheData {
 	defer s.cacheMu.RUnlock()
 
 	cacheCopy := *s.cache
+	cacheCopy.Zai = cloneProviderData(s.cache.Zai)
+	cacheCopy.Kimi = cloneProviderData(s.cache.Kimi)
+	cacheCopy.Codex = cloneProviderData(s.cache.Codex)
+	cacheCopy.Claude = cloneProviderData(s.cache.Claude)
+	cacheCopy.OpenCodeGo = cloneProviderData(s.cache.OpenCodeGo)
 	return &cacheCopy
+}
+
+func (s *Scheduler) getProviderCache(id string) *ProviderData {
+	switch id {
+	case "zai":
+		return s.cache.Zai
+	case "kimi":
+		return s.cache.Kimi
+	case "codex":
+		return s.cache.Codex
+	case "claude":
+		return s.cache.Claude
+	case "opencodego":
+		return s.cache.OpenCodeGo
+	default:
+		return nil
+	}
+}
+
+func (s *Scheduler) setProviderCache(id string, data *ProviderData) {
+	switch id {
+	case "zai":
+		s.cache.Zai = data
+	case "kimi":
+		s.cache.Kimi = data
+	case "codex":
+		s.cache.Codex = data
+	case "claude":
+		s.cache.Claude = data
+	case "opencodego":
+		s.cache.OpenCodeGo = data
+	}
+}
+
+func cloneProviderData(data *ProviderData) *ProviderData {
+	if data == nil {
+		return nil
+	}
+	copy := *data
+	if data.Session != nil {
+		sessionCopy := *data.Session
+		copy.Session = &sessionCopy
+	}
+	if data.Weekly != nil {
+		weeklyCopy := *data.Weekly
+		copy.Weekly = &weeklyCopy
+	}
+	if data.Monthly != nil {
+		monthlyCopy := *data.Monthly
+		copy.Monthly = &monthlyCopy
+	}
+	if data.Models != nil {
+		modelsCopy := *data.Models
+		copy.Models = &modelsCopy
+	}
+	if data.Credits != nil {
+		creditsCopy := *data.Credits
+		copy.Credits = &creditsCopy
+	}
+	return &copy
 }
 
 func flattenCookies(cookiesByDomain map[string]map[string]string) map[string]string {

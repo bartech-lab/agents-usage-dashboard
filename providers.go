@@ -8,7 +8,9 @@ import (
 	"log"
 	"math"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,10 +39,107 @@ func (fi *FlexInt) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Provider represents a data provider for the dashboard
-type Provider struct {
-	Name string
-	Type string
+type Provider interface {
+	ID() string
+	IsEnabled() bool
+	Fetch(client tls_client.HttpClient) (*ProviderData, error)
+}
+
+type ZAIProvider struct {
+	cfg *ZAIConfig
+}
+
+func (p *ZAIProvider) ID() string { return "zai" }
+
+func (p *ZAIProvider) IsEnabled() bool { return p.cfg != nil && p.cfg.Enabled }
+
+func (p *ZAIProvider) Fetch(client tls_client.HttpClient) (*ProviderData, error) {
+	if p.cfg == nil {
+		return &ProviderData{Status: "offline", Error: "ZAI config missing"}, nil
+	}
+	return fetchZAI(client, p.cfg.APIKey)
+}
+
+type KimiProvider struct {
+	cfg *ProviderAuth
+}
+
+func (p *KimiProvider) ID() string { return "kimi" }
+
+func (p *KimiProvider) IsEnabled() bool { return p.cfg != nil && p.cfg.Enabled }
+
+func (p *KimiProvider) Fetch(client tls_client.HttpClient) (*ProviderData, error) {
+	if p.cfg == nil {
+		return &ProviderData{Status: "offline", Error: "Kimi config missing"}, nil
+	}
+	return fetchKimi(client, *p.cfg)
+}
+
+type CodexProvider struct {
+	cfg *CodexProviderConfig
+}
+
+func (p *CodexProvider) ID() string { return "codex" }
+
+func (p *CodexProvider) IsEnabled() bool { return p.cfg != nil && p.cfg.Enabled }
+
+func (p *CodexProvider) Fetch(client tls_client.HttpClient) (*ProviderData, error) {
+	if p.cfg == nil {
+		return &ProviderData{Status: "offline", Error: "Codex config missing"}, nil
+	}
+	if p.cfg.OAuth == nil || p.cfg.OAuth.TokenFile == "" {
+		return nil, fmt.Errorf("codex oauth not configured (set codex.oauth.token_file in config.yaml)")
+	}
+	return fetchCodexViaOAuth(client, p.cfg.OAuth.TokenFile)
+}
+
+type ClaudeProvider struct {
+	cfg   *ProviderAuth
+	orgID *string
+}
+
+func (p *ClaudeProvider) ID() string { return "claude" }
+
+func (p *ClaudeProvider) IsEnabled() bool { return p.cfg != nil && p.cfg.Enabled }
+
+func (p *ClaudeProvider) Fetch(client tls_client.HttpClient) (*ProviderData, error) {
+	if p.cfg == nil {
+		return &ProviderData{Status: "offline", Error: "Claude config missing"}, nil
+	}
+	data, orgID, err := fetchClaude(client, flattenCookies(p.cfg.Cookies), p.orgID)
+	if err == nil && orgID != nil && strings.TrimSpace(*orgID) != "" {
+		p.orgID = orgID
+	}
+	return data, err
+}
+
+type OpenCodeGoProvider struct {
+	cfg *OpenCodeGoConfig
+}
+
+func (p *OpenCodeGoProvider) ID() string { return "opencodego" }
+
+func (p *OpenCodeGoProvider) IsEnabled() bool { return p.cfg != nil && p.cfg.Enabled }
+
+func (p *OpenCodeGoProvider) Fetch(client tls_client.HttpClient) (*ProviderData, error) {
+	if p.cfg == nil {
+		return &ProviderData{Status: "offline", Error: "OpenCode Go config missing"}, nil
+	}
+	return fetchOpenCodeGo(client, p.cfg.WorkspaceID, p.cfg.Cookies)
+}
+
+func buildProviders(cfg *ProvidersConfig) []Provider {
+	if cfg == nil {
+		return nil
+	}
+
+	return []Provider{
+		&ZAIProvider{cfg: &cfg.Zai},
+		&KimiProvider{cfg: &cfg.Kimi},
+		&CodexProvider{cfg: &cfg.Codex},
+		&ClaudeProvider{cfg: &cfg.Claude},
+		&OpenCodeGoProvider{cfg: &cfg.OpenCodeGo},
+	}
 }
 
 // CodexOAuthTokens represents the structure of ~/.codex/auth.json
@@ -208,155 +307,11 @@ func fetchCodexViaOAuth(client tls_client.HttpClient, tokenFile string) (*Provid
 			ResetAt:          unixToISO(usageData.RateLimit.SecondaryWindow.ResetAt),
 			RemainingSeconds: weeklyRemaining,
 		},
-		Credits:        usageData.Credits,
-		DailyBreakdown: []DailyEntry{},
+		Credits: usageData.Credits,
 	}
 
 	if expirationWarning != "" {
 		log.Printf("Codex token warning: %s", expirationWarning)
-	}
-
-	return result, nil
-}
-
-func fetchCodex(client tls_client.HttpClient, cookies map[string]string) (*ProviderData, error) {
-	cookieHeader := buildCookieHeader(cookies)
-	if cookieHeader == "" {
-		return nil, fmt.Errorf("codex cookies are required")
-	}
-
-	sessionReq, err := http.NewRequest(http.MethodGet, "https://chatgpt.com/api/auth/session", nil)
-	if err != nil {
-		return nil, fmt.Errorf("create codex session request: %w", err)
-	}
-	sessionReq.Header.Set("Cookie", cookieHeader)
-	sessionReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-	sessionReq.Header.Set("Accept", "application/json")
-	sessionReq.Header.Set("Origin", "https://chatgpt.com")
-	sessionReq.Header.Set("Referer", "https://chatgpt.com/")
-
-	sessionResp, err := client.Do(sessionReq)
-	if err != nil {
-		return nil, fmt.Errorf("fetch codex session: %w", err)
-	}
-	defer sessionResp.Body.Close()
-
-	if sessionResp.StatusCode < 200 || sessionResp.StatusCode >= 300 {
-		return nil, fmt.Errorf("codex session request failed: status %d", sessionResp.StatusCode)
-	}
-
-	var sessionData struct {
-		AccessToken string `json:"accessToken"`
-	}
-	if err := json.NewDecoder(sessionResp.Body).Decode(&sessionData); err != nil {
-		return nil, fmt.Errorf("decode codex session response: %w", err)
-	}
-	if sessionData.AccessToken == "" {
-		return nil, fmt.Errorf("codex access token missing from session response")
-	}
-
-	usageReq, err := http.NewRequest(http.MethodGet, "https://chatgpt.com/backend-api/wham/usage", nil)
-	if err != nil {
-		return nil, fmt.Errorf("create codex usage request: %w", err)
-	}
-	usageReq.Header.Set("Authorization", "Bearer "+sessionData.AccessToken)
-	usageReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-	usageReq.Header.Set("Accept", "application/json")
-	usageReq.Header.Set("Origin", "https://chatgpt.com")
-	usageReq.Header.Set("Referer", "https://chatgpt.com/")
-
-	usageResp, err := client.Do(usageReq)
-	if err != nil {
-		return nil, fmt.Errorf("fetch codex usage: %w", err)
-	}
-	defer usageResp.Body.Close()
-
-	if usageResp.StatusCode < 200 || usageResp.StatusCode >= 300 {
-		return nil, fmt.Errorf("codex usage request failed: status %d", usageResp.StatusCode)
-	}
-
-	var usageData struct {
-		PlanType     string `json:"plan_type"`
-		Plan         string `json:"plan"`
-		LimitReached bool   `json:"limit_reached"`
-		RateLimit    struct {
-			LimitReached  bool `json:"limit_reached"`
-			PrimaryWindow struct {
-				UsedPercent  *float64 `json:"used_percent"`
-				UsagePercent *float64 `json:"usage_percent"`
-				ResetAt      float64  `json:"reset_at"`
-			} `json:"primary_window"`
-			SecondaryWindow struct {
-				UsedPercent  *float64 `json:"used_percent"`
-				UsagePercent *float64 `json:"usage_percent"`
-				ResetAt      float64  `json:"reset_at"`
-			} `json:"secondary_window"`
-		} `json:"rate_limit"`
-		Credits *Credits `json:"credits"`
-	}
-	if err := json.NewDecoder(usageResp.Body).Decode(&usageData); err != nil {
-		return nil, fmt.Errorf("decode codex usage response: %w", err)
-	}
-
-	plan := usageData.PlanType
-	if plan == "" {
-		plan = usageData.Plan
-	}
-	if plan == "" {
-		plan = "unknown"
-	}
-
-	sessionPct := pickPercent(usageData.RateLimit.PrimaryWindow.UsedPercent, usageData.RateLimit.PrimaryWindow.UsagePercent)
-	weeklyPct := pickPercent(usageData.RateLimit.SecondaryWindow.UsedPercent, usageData.RateLimit.SecondaryWindow.UsagePercent)
-
-	sessionRemaining := 0
-	if remaining := remainingFromUnix(usageData.RateLimit.PrimaryWindow.ResetAt); remaining != nil {
-		sessionRemaining = *remaining
-	}
-
-	weeklyRemaining := 0
-	if remaining := remainingFromUnix(usageData.RateLimit.SecondaryWindow.ResetAt); remaining != nil {
-		weeklyRemaining = *remaining
-	}
-
-	result := &ProviderData{
-		Status:       "ok",
-		Plan:         plan,
-		LimitReached: usageData.LimitReached || usageData.RateLimit.LimitReached,
-		Session: &UsageWindow{
-			UsagePct:         sessionPct,
-			ResetAt:          unixToISO(usageData.RateLimit.PrimaryWindow.ResetAt),
-			RemainingSeconds: sessionRemaining,
-		},
-		Weekly: &UsageWindow{
-			UsagePct:         weeklyPct,
-			ResetAt:          unixToISO(usageData.RateLimit.SecondaryWindow.ResetAt),
-			RemainingSeconds: weeklyRemaining,
-		},
-		Credits:        usageData.Credits,
-		DailyBreakdown: []DailyEntry{},
-	}
-
-	breakdownReq, err := http.NewRequest(http.MethodGet, "https://chatgpt.com/backend-api/wham/usage/daily-token-usage-breakdown", nil)
-	if err == nil {
-		breakdownReq.Header.Set("Authorization", "Bearer "+sessionData.AccessToken)
-		breakdownReq.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-		breakdownReq.Header.Set("Accept", "application/json")
-		breakdownReq.Header.Set("Origin", "https://chatgpt.com")
-		breakdownReq.Header.Set("Referer", "https://chatgpt.com/")
-
-		breakdownResp, breakdownErr := client.Do(breakdownReq)
-		if breakdownErr == nil {
-			defer breakdownResp.Body.Close()
-			if breakdownResp.StatusCode >= 200 && breakdownResp.StatusCode < 300 {
-				var breakdownData struct {
-					Data []DailyEntry `json:"data"`
-				}
-				if decodeErr := json.NewDecoder(breakdownResp.Body).Decode(&breakdownData); decodeErr == nil {
-					result.DailyBreakdown = breakdownData.Data
-				}
-			}
-		}
 	}
 
 	return result, nil
@@ -655,6 +610,146 @@ func fetchZAI(client tls_client.HttpClient, apiKey string) (*ProviderData, error
 			RemainingSeconds: weeklyRemaining,
 		},
 	}, nil
+}
+
+var (
+	openCodeGoProgressPattern = regexp.MustCompile(`data-slot="progress-bar"[^>]*style="[^"]*width\s*:\s*([0-9]+(?:\.[0-9]+)?)%`)
+	openCodeGoResetPattern    = regexp.MustCompile(`(?s)data-slot="reset-time"[^>]*>(.*?)</span>`)
+	openCodeGoTagPattern      = regexp.MustCompile(`<[^>]+>`)
+	openCodeGoCommentPattern  = regexp.MustCompile(`<!--.*?-->`)
+	openCodeGoDurationPattern = regexp.MustCompile(`(?i)(\d+)\s*(day|days|hour|hours|minute|minutes|min|mins|second|seconds|sec|secs)`)
+)
+
+func fetchOpenCodeGo(client tls_client.HttpClient, workspaceID string, cookiesByDomain map[string]map[string]string) (*ProviderData, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return &ProviderData{Status: "offline", Error: "No OpenCode Go workspace_id configured"}, nil
+	}
+
+	cookies := map[string]string{}
+	for domain, domainCookies := range cookiesByDomain {
+		if !strings.Contains(domain, "opencode.ai") {
+			continue
+		}
+		for name, value := range domainCookies {
+			if strings.TrimSpace(value) != "" {
+				cookies[name] = value
+			}
+		}
+	}
+
+	authCookie := strings.TrimSpace(cookies["auth"])
+	if authCookie == "" {
+		return &ProviderData{Status: "offline", Error: "No opencode.ai auth cookie found"}, nil
+	}
+
+	reqURL := fmt.Sprintf("https://opencode.ai/workspace/%s/go", workspaceID)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create OpenCode Go workspace request: %w", err)
+	}
+
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Cookie", buildCookieHeader(cookies))
+	req.Header.Set("Referer", "https://opencode.ai/workspace/"+workspaceID+"/usage")
+	req.Header.Set("Origin", "https://opencode.ai")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch OpenCode Go workspace page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return &ProviderData{Status: "error", Error: "OpenCode auth cookie unauthorized"}, nil
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("OpenCode Go page request failed: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read OpenCode Go page response: %w", err)
+	}
+	body := string(bodyBytes)
+
+	progressMatches := openCodeGoProgressPattern.FindAllStringSubmatch(body, -1)
+	if len(progressMatches) < 3 {
+		return nil, fmt.Errorf("parse OpenCode Go usage: expected 3 usage bars, got %d", len(progressMatches))
+	}
+
+	resetMatches := openCodeGoResetPattern.FindAllStringSubmatch(body, -1)
+
+	percentages := make([]float64, 3)
+	for i := 0; i < 3; i++ {
+		value, err := strconv.ParseFloat(progressMatches[i][1], 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse OpenCode Go usage percentage %q: %w", progressMatches[i][1], err)
+		}
+		percentages[i] = value
+	}
+
+	remainingSeconds := [3]int{}
+	for i := 0; i < len(resetMatches) && i < 3; i++ {
+		raw := openCodeGoTagPattern.ReplaceAllString(resetMatches[i][1], " ")
+		raw = openCodeGoCommentPattern.ReplaceAllString(raw, " ")
+		raw = strings.TrimSpace(strings.Join(strings.Fields(raw), " "))
+		raw = strings.TrimSpace(strings.TrimPrefix(raw, "Resets in"))
+		remainingSeconds[i] = parseOpenCodeGoDuration(raw)
+	}
+
+	return &ProviderData{
+		Status: "ok",
+		Plan:   "OpenCode Go",
+		Session: &UsageWindow{
+			UsagePct:         percentages[0],
+			RemainingSeconds: remainingSeconds[0],
+		},
+		Weekly: &UsageWindow{
+			UsagePct:         percentages[1],
+			RemainingSeconds: remainingSeconds[1],
+		},
+		Monthly: &UsageWindow{
+			UsagePct:         percentages[2],
+			RemainingSeconds: remainingSeconds[2],
+		},
+	}, nil
+}
+
+func parseOpenCodeGoDuration(input string) int {
+	if strings.TrimSpace(input) == "" {
+		return 0
+	}
+
+	matches := openCodeGoDurationPattern.FindAllStringSubmatch(strings.ToLower(input), -1)
+	if len(matches) == 0 {
+		return 0
+	}
+
+	total := 0
+	for _, match := range matches {
+		count, err := strconv.Atoi(match[1])
+		if err != nil {
+			continue
+		}
+		switch match[2] {
+		case "day", "days":
+			total += count * 24 * 60 * 60
+		case "hour", "hours":
+			total += count * 60 * 60
+		case "minute", "minutes", "min", "mins":
+			total += count * 60
+		case "second", "seconds", "sec", "secs":
+			total += count
+		}
+	}
+
+	if total < 0 {
+		return 0
+	}
+	return total
 }
 
 func pickPercent(usedPercent *float64, usagePercent *float64) float64 {

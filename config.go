@@ -19,10 +19,11 @@ type Config struct {
 
 // ProvidersConfig contains authentication settings for all providers
 type ProvidersConfig struct {
-	Zai    ZAIConfig           `yaml:"zai"`
-	Kimi   ProviderAuth        `yaml:"kimi"`
-	Codex  CodexProviderConfig `yaml:"codex"`
-	Claude ProviderAuth        `yaml:"claude"`
+	Zai        ZAIConfig           `yaml:"zai"`
+	Kimi       ProviderAuth        `yaml:"kimi"`
+	Codex      CodexProviderConfig `yaml:"codex"`
+	Claude     ProviderAuth        `yaml:"claude"`
+	OpenCodeGo OpenCodeGoConfig    `yaml:"opencodego"`
 }
 
 // CodexProviderConfig contains Codex-specific configuration
@@ -41,6 +42,13 @@ type ProviderAuth struct {
 type ZAIConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	APIKey  string `yaml:"api_key"`
+}
+
+// OpenCodeGoConfig contains cookie-based authentication for OpenCode Go provider
+type OpenCodeGoConfig struct {
+	Enabled     bool                         `yaml:"enabled"`
+	WorkspaceID string                       `yaml:"workspace_id"`
+	Cookies     map[string]map[string]string `yaml:"cookies"`
 }
 
 // OAuthConfig contains OAuth token file configuration
@@ -151,6 +159,21 @@ func validateConfig(config *Config) error {
 		}
 	}
 
+	// Check OpenCode Go - needs workspace_id and auth cookie
+	if strings.TrimSpace(config.Providers.OpenCodeGo.WorkspaceID) != "" {
+		hasAuthCookie := false
+		for _, domainCookies := range config.Providers.OpenCodeGo.Cookies {
+			if strings.TrimSpace(domainCookies["auth"]) != "" {
+				hasAuthCookie = true
+				break
+			}
+		}
+		if !hasAuthCookie {
+			return fmt.Errorf("opencodego requires an auth cookie (set opencodego.cookies.opencode.ai.auth)")
+		}
+		hasConfiguredProvider = true
+	}
+
 	if !hasConfiguredProvider {
 		return fmt.Errorf("at least one provider must be configured with credentials (check your config.yaml and .env files)")
 	}
@@ -158,14 +181,39 @@ func validateConfig(config *Config) error {
 	return nil
 }
 
-// Save writes the configuration back to a YAML file
+// Save updates only provider enabled flags in the YAML file,
+// preserving all other content including ${VAR} placeholders and comments.
 func (c *Config) Save(path string) error {
-	data, err := yaml.Marshal(c)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
+		return fmt.Errorf("read config file: %w", err)
+	}
+	content := string(data)
+
+	// Map of provider IDs to their enabled state
+	enabledStates := map[string]bool{
+		"zai":        c.Providers.Zai.Enabled,
+		"kimi":       c.Providers.Kimi.Enabled,
+		"codex":      c.Providers.Codex.Enabled,
+		"claude":     c.Providers.Claude.Enabled,
+		"opencodego": c.Providers.OpenCodeGo.Enabled,
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	for provider, enabled := range enabledStates {
+		var newValue string
+		if enabled {
+			newValue = "enabled: true"
+		} else {
+			newValue = "enabled: false"
+		}
+
+		// Pattern: match "enabled: <value>" that appears after the provider key
+		// This is a simple line-based replacement that preserves indentation
+		pattern := regexp.MustCompile(fmt.Sprintf(`(?m)(^[ \t]*%s:[\s\S]*?^[ \t]*)enabled:\s*(true|false)`, regexp.QuoteMeta(provider)))
+		content = pattern.ReplaceAllString(content, "${1}"+newValue)
+	}
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 

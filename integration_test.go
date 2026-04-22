@@ -234,55 +234,6 @@ func (m *integrationMockHTTPClient) GetTLSDialer() tls_client.TLSDialerFunc {
 	return nil
 }
 
-func TestFetchCodexIntegration(t *testing.T) {
-	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-		switch r.URL.Path {
-		case "/api/auth/session":
-			json.NewEncoder(w).Encode(map[string]string{"accessToken": "test-token"})
-		case "/backend-api/wham/usage":
-			json.NewEncoder(w).Encode(map[string]any{
-				"plan_type": "plus",
-				"rate_limit": map[string]any{
-					"primary_window": map[string]any{
-						"used_percent": 50.0,
-						"reset_at":     float64(time.Now().Add(15 * time.Minute).Unix()),
-					},
-					"secondary_window": map[string]any{
-						"used_percent": 25.0,
-						"reset_at":     float64(time.Now().Add(24 * time.Hour).Unix()),
-					},
-				},
-			})
-		case "/backend-api/wham/usage/daily-token-usage-breakdown":
-			json.NewEncoder(w).Encode(map[string]any{
-				"data": []map[string]any{{"day": "2026-03-01", "value": 123.0}},
-			})
-		default:
-			w.WriteHeader(stdhttp.StatusNotFound)
-		}
-	}))
-	defer server.Close()
-
-	client := newIntegrationMockHTTPClient(map[string]*httptest.Server{"chatgpt.com": server})
-	data, err := fetchCodex(client, map[string]string{"session": "cookie"})
-	if err != nil {
-		t.Fatalf("fetchCodex returned error: %v", err)
-	}
-
-	if data.Status != "ok" {
-		t.Fatalf("expected status ok, got %q", data.Status)
-	}
-	if data.Plan != "plus" {
-		t.Fatalf("expected plan plus, got %q", data.Plan)
-	}
-	if data.Session == nil || data.Weekly == nil {
-		t.Fatalf("expected session and weekly windows to be set")
-	}
-	if len(data.DailyBreakdown) != 1 {
-		t.Fatalf("expected one daily breakdown row, got %d", len(data.DailyBreakdown))
-	}
-}
-
 func TestFetchKimiIntegration(t *testing.T) {
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		switch r.URL.Path {
@@ -457,11 +408,6 @@ func TestProviderFetches_ErrorResponses(t *testing.T) {
 	}))
 	defer zai.Close()
 
-	codexClient := newIntegrationMockHTTPClient(map[string]*httptest.Server{"chatgpt.com": chatgpt})
-	if _, err := fetchCodex(codexClient, map[string]string{"session": "cookie"}); err == nil {
-		t.Fatalf("expected fetchCodex to return an error")
-	}
-
 	kimiClient := newIntegrationMockHTTPClient(map[string]*httptest.Server{"www.kimi.com": kimi})
 	kimiData, kimiErr := fetchKimi(kimiClient, ProviderAuth{Cookies: map[string]map[string]string{"www.kimi.com": {"kimi-auth": "token"}}})
 	if kimiErr != nil {
@@ -487,7 +433,8 @@ func TestSchedulerFetchAll_Integration(t *testing.T) {
 	defer providers.close()
 
 	tokenFile := writeIntegrationCodexTokenFile(t)
-	scheduler := NewScheduler(newIntegrationConfigWithTestingTokenFile(tokenFile), newIntegrationMockHTTPClient(providers.servers()))
+	cfg := newIntegrationConfigWithTestingTokenFile(tokenFile)
+	scheduler := NewScheduler(cfg.RefreshInterval, buildProviders(&cfg.Providers), newIntegrationMockHTTPClient(providers.servers()))
 	scheduler.fetchAll()
 
 	cache := scheduler.GetCache()
@@ -505,7 +452,8 @@ func TestSchedulerFetchAll_StaleDataPreserved(t *testing.T) {
 
 	client := newIntegrationMockHTTPClient(providers.servers())
 	tokenFile := writeIntegrationCodexTokenFile(t)
-	scheduler := NewScheduler(newIntegrationConfigWithTestingTokenFile(tokenFile), client)
+	cfg := newIntegrationConfigWithTestingTokenFile(tokenFile)
+	scheduler := NewScheduler(cfg.RefreshInterval, buildProviders(&cfg.Providers), client)
 
 	scheduler.fetchAll()
 	first := scheduler.GetCache()

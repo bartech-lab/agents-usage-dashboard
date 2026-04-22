@@ -25,6 +25,7 @@ Agents Usage Monitor is a self-contained Go binary that monitors AI assistant us
 │                                      │ • kimi.com     │ │
 │                                      │ • chatgpt.com  │ │
 │                                      │ • claude.ai    │ │
+│                                      │ • opencode.ai  │ │
 │                                      └───────┬────────┘ │
 │                                              │          │
 │                                              ↓          │
@@ -79,8 +80,19 @@ Agents Usage Monitor is a self-contained Go binary that monitors AI assistant us
 **Provider Fetching:**
 - **Z-AI**: API key auth (JWT generation)
 - **Kimi**: Cookie-based auth (`kimi-auth` token)
-- **Codex**: Cookie-based auth (ChatGPT session)
+- **Codex**: OAuth token-file auth (Codex CLI)
 - **Claude**: Cookie-based auth (session key)
+- **OpenCode Go**: Workspace page scraping with `auth` cookie
+
+Providers implement a shared interface in `providers.go`:
+
+```go
+type Provider interface {
+    ID() string
+    IsEnabled() bool
+    Fetch(client tls_client.HttpClient) (*ProviderData, error)
+}
+```
 
 **Note:** Credentials (cookies/API keys) must be manually extracted from browsers and added to `.env`. This differs from the original Python version which used Firefox automation for automatic cookie extraction.
 
@@ -142,7 +154,7 @@ setInterval(() => {
 
 **UI Components:**
 - Agent cards (2 per row)
-- Usage bars (session + weekly)
+- Usage bars (session + weekly + optional monthly)
 - Countdown timer
 - Color-coded status (ok/warn/critical)
 
@@ -155,6 +167,7 @@ type CacheData struct {
     Kimi          *ProviderData
     Codex         *ProviderData
     Claude        *ProviderData
+    OpenCodeGo    *ProviderData
     LastFetch     string
     NextRefreshAt string
 }
@@ -167,6 +180,7 @@ type ProviderData struct {
     Plan           string  // "Moderato", "pro", "plus", etc.
     Session        *UsageWindow
     Weekly         *UsageWindow
+    Monthly        *UsageWindow
     Models         *ClaudeModels  // Claude-specific
     DailyBreakdown []DailyEntry   // Codex-specific
     Error          string

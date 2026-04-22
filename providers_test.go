@@ -1,6 +1,7 @@
 package main
 
 import (
+	stdhttp "net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -80,5 +81,70 @@ func TestGenerateZAIJWT_NonIDSecretReturnsAsIs(t *testing.T) {
 
 	if strings.Count(got, ".") != 0 {
 		t.Fatalf("token = %q appears to be JWT, expected raw token", got)
+	}
+}
+
+func TestFetchOpenCodeGo(t *testing.T) {
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		if r.URL.Path != "/workspace/wrk_test/go" {
+			w.WriteHeader(stdhttp.StatusNotFound)
+			return
+		}
+
+		cookieHeader := r.Header.Get("Cookie")
+		if !strings.Contains(cookieHeader, "auth=Fe26.2-test") {
+			w.WriteHeader(stdhttp.StatusUnauthorized)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<div data-slot="usage">
+			<div data-slot="usage-item"><div data-slot="progress"><div data-slot="progress-bar" style="width:12%"></div></div><span data-slot="reset-time">Resets in 3 hours 8 minutes</span></div>
+			<div data-slot="usage-item"><div data-slot="progress"><div data-slot="progress-bar" style="width:34.5%"></div></div><span data-slot="reset-time">Resets in 4 days 13 hours</span></div>
+			<div data-slot="usage-item"><div data-slot="progress"><div data-slot="progress-bar" style="width:67.8%"></div></div><span data-slot="reset-time">Resets in 29 days 22 hours</span></div>
+		</div>`))
+	}))
+	defer server.Close()
+
+	client := newMockHTTPClient(map[string]*httptest.Server{"opencode.ai": server})
+	data, err := fetchOpenCodeGo(client, "wrk_test", map[string]map[string]string{"opencode.ai": {"auth": "Fe26.2-test"}})
+	if err != nil {
+		t.Fatalf("fetchOpenCodeGo() error: %v", err)
+	}
+
+	if data.Status != "ok" {
+		t.Fatalf("status = %q, want ok", data.Status)
+	}
+	if data.Plan != "OpenCode Go" {
+		t.Fatalf("plan = %q, want OpenCode Go", data.Plan)
+	}
+	if data.Session == nil || data.Weekly == nil || data.Monthly == nil {
+		t.Fatalf("expected all three usage windows, got session=%v weekly=%v monthly=%v", data.Session, data.Weekly, data.Monthly)
+	}
+	if data.Monthly.UsagePct != 67.8 {
+		t.Fatalf("monthly usage_pct = %v, want 67.8", data.Monthly.UsagePct)
+	}
+	if data.Session.RemainingSeconds != 11280 {
+		t.Fatalf("session remaining_seconds = %d, want 11280", data.Session.RemainingSeconds)
+	}
+}
+
+func TestFetchOpenCodeGo_MissingWorkspaceID(t *testing.T) {
+	data, err := fetchOpenCodeGo(newMockHTTPClient(nil), "", map[string]map[string]string{"opencode.ai": {"auth": "Fe26.2-test"}})
+	if err != nil {
+		t.Fatalf("fetchOpenCodeGo() error: %v", err)
+	}
+	if data.Status != "offline" {
+		t.Fatalf("status = %q, want offline", data.Status)
+	}
+}
+
+func TestFetchOpenCodeGo_MissingCookie(t *testing.T) {
+	data, err := fetchOpenCodeGo(newMockHTTPClient(nil), "wrk_test", nil)
+	if err != nil {
+		t.Fatalf("fetchOpenCodeGo() error: %v", err)
+	}
+	if data.Status != "offline" {
+		t.Fatalf("status = %q, want offline", data.Status)
 	}
 }

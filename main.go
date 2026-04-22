@@ -31,7 +31,8 @@ func NewServer(cfg *Config, configPath string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
 	}
-	scheduler := NewScheduler(cfg, client)
+	providers := buildProviders(&cfg.Providers)
+	scheduler := NewScheduler(cfg.RefreshInterval, providers, client)
 
 	return &Server{
 		config:     cfg,
@@ -91,6 +92,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 				Claude struct {
 					Enabled bool `json:"enabled"`
 				} `json:"claude"`
+				OpenCodeGo struct {
+					Enabled bool `json:"enabled"`
+				} `json:"opencodego"`
 			} `json:"providers"`
 		}
 
@@ -99,6 +103,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		pub.Providers.Kimi.Enabled = s.config.Providers.Kimi.Enabled
 		pub.Providers.Codex.Enabled = s.config.Providers.Codex.Enabled
 		pub.Providers.Claude.Enabled = s.config.Providers.Claude.Enabled
+		pub.Providers.OpenCodeGo.Enabled = s.config.Providers.OpenCodeGo.Enabled
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(pub)
@@ -141,6 +146,11 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			case "claude":
 				if s.config.Providers.Claude.Enabled != *settings.Enabled {
 					s.config.Providers.Claude.Enabled = *settings.Enabled
+					changed = true
+				}
+			case "opencodego":
+				if s.config.Providers.OpenCodeGo.Enabled != *settings.Enabled {
+					s.config.Providers.OpenCodeGo.Enabled = *settings.Enabled
 					changed = true
 				}
 			}

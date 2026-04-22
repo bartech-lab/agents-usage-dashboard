@@ -42,6 +42,9 @@
       --zai: #c084fc;
       --zai-m: rgba(192, 132, 252, 0.2);
       --zai-d: rgba(192, 132, 252, 0.4);
+      --opencodego: #f8fafc;
+      --opencodego-m: rgba(248, 250, 252, 0.2);
+      --opencodego-d: rgba(248, 250, 252, 0.45);
 
       /* Background Hierarchy - Dark Theme */
       --base: #090a0f;
@@ -386,6 +389,11 @@
       color: var(--claude);
     }
 
+    .provider-toggle.active[data-provider="opencodego"] {
+      background: var(--opencodego-m);
+      color: var(--opencodego);
+    }
+
     .provider-toggle .dot {
       width: 6px;
       height: 6px;
@@ -560,6 +568,8 @@
       border-radius: 12px;
       overflow: hidden;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
       transition: all 0.3s ease;
       box-shadow: var(--shadow-sm)
     }
@@ -610,6 +620,7 @@
     }
 
     .a-body {
+      flex: 1;
       padding: 0 20px 8px
     }
 
@@ -828,6 +839,10 @@
             <span class="dot"></span>
             <span>Claude</span>
           </button>
+          <button class="provider-toggle" data-provider="opencodego" onclick="toggleProvider('opencodego')">
+            <span class="dot"></span>
+            <span>OpenCode Go</span>
+          </button>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="last-ts" id="nextRefresh"></span>
@@ -861,13 +876,14 @@
     let pollInterval = null;
     let countdownInterval = null;
 
-    const AGENTS = ['zai', 'kimi', 'codex', 'claude'];
-    const NAMES = { zai: 'Z', kimi: 'Kimi', codex: 'Codex', claude: 'Claude' };
+    const AGENTS = ['zai', 'kimi', 'codex', 'claude', 'opencodego'];
+    const NAMES = { zai: 'Z', kimi: 'Kimi', codex: 'Codex', claude: 'Claude', opencodego: 'OpenCode Go' };
     const COLORS = {
       codex: { solid: '#06b6d4', muted: 'rgba(6,182,212,0.15)', dimmed: 'rgba(6,182,212,0.3)' },
       kimi: { solid: '#f97316', muted: 'rgba(249,115,22,0.15)', dimmed: 'rgba(249,115,22,0.3)' },
       claude: { solid: '#d4a06e', muted: 'rgba(212,160,110,0.15)', dimmed: 'rgba(212,160,110,0.3)' },
       zai: { solid: '#a855f7', muted: 'rgba(168,85,247,0.15)', dimmed: 'rgba(168,85,247,0.3)' },
+      opencodego: { solid: '#f8fafc', muted: 'rgba(248,250,252,0.15)', dimmed: 'rgba(248,250,252,0.3)' },
     };
     const STATUS_COLORS = {
       ok: '#5a9d6d', warn: '#c9a33c', critical: '#d67272',
@@ -931,7 +947,8 @@
       zai: true,
       kimi: true,
       codex: true,
-      claude: false
+      claude: false,
+      opencodego: false
     };
 
     async function loadToggleStates() {
@@ -939,10 +956,11 @@
         const response = await fetch('/api/config');
         const config = await response.json();
         
-        providerStates.zai = config.providers.zai.enabled;
-        providerStates.kimi = config.providers.kimi.enabled;
-        providerStates.codex = config.providers.codex.enabled;
-        providerStates.claude = config.providers.claude.enabled;
+        providerStates.zai = config.providers?.zai?.enabled ?? providerStates.zai;
+        providerStates.kimi = config.providers?.kimi?.enabled ?? providerStates.kimi;
+        providerStates.codex = config.providers?.codex?.enabled ?? providerStates.codex;
+        providerStates.claude = config.providers?.claude?.enabled ?? providerStates.claude;
+        providerStates.opencodego = config.providers?.opencodego?.enabled ?? providerStates.opencodego;
         
         updateToggleButtons();
       } catch (error) {
@@ -1193,6 +1211,9 @@
       } else {
         body = usageBar('Session usage', data.session?.usage_pct || 0, data.session);
         body += usageBar('Weekly usage', data.weekly?.usage_pct || 0, data.weekly);
+        if (data.monthly) {
+          body += usageBar('Monthly usage', data.monthly?.usage_pct || 0, data.monthly);
+        }
         if (isStale) {
           body += `<div style="font-family:var(--mono);font-size:10px;color:var(--stale);margin-top:4px">\u25F7 Data may be stale: ${esc(data.error || 'fetch failed')}</div>`;
         }
@@ -1211,11 +1232,6 @@
           footer = `<div class="a-footer">\u2B21 Sonnet ${s}% \u00B7 Opus ${o}%</div>`;
         }
       }
-      if (id === 'zai' && data.limits_detail && data.limits_detail.length > 0 && !isErr) {
-        const parts = data.limits_detail.map(l => `${esc(l.name)}: ${esc(l.used)}/${esc(l.total)}`).join(' \u00B7 ');
-        footer = `<div class="a-footer">\u2B21 ${parts}</div>`;
-      }
-
       const statusIcon = STATUS_ICONS[data.status] || '?';
       const statusClr = statusColor(data.status);
       const plan = esc(data.plan || '?');

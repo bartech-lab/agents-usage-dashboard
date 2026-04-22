@@ -120,6 +120,18 @@ providers:
 `,
 			wantErrPart: "refresh_interval must be positive",
 		},
+		{
+			name: "opencodego missing auth cookie",
+			content: `
+providers:
+  opencodego:
+    workspace_id: wrk_test
+    cookies:
+      "opencode.ai":
+        "other": "value"
+`,
+			wantErrPart: "opencodego requires an auth cookie",
+		},
 	}
 
 	for _, tt := range tests {
@@ -176,6 +188,17 @@ providers:
 providers:
   zai:
     api_key: test-id.test-secret
+`,
+		},
+		{
+			name: "opencodego only",
+			content: `
+providers:
+  opencodego:
+    workspace_id: wrk_test
+    cookies:
+      "opencode.ai":
+        "auth": "Fe26.2-test"
 `,
 		},
 		{

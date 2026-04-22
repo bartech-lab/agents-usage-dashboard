@@ -48,6 +48,16 @@ providers:
       "claude.ai":
         "sessionKey": "${CLAUDE_SESSION_KEY}"
 
+  # OpenCode Go provider configuration (cookie-based auth)
+  # Get workspace id from URL: https://opencode.ai/workspace/<workspace_id>/go
+  # Extract auth cookie from opencode.ai after logging in
+  opencodego:
+    enabled: false
+    workspace_id: "${OPENCODE_GO_WORKSPACE_ID}"
+    cookies:
+      "opencode.ai":
+        "auth": "${OPENCODE_GO_AUTH_COOKIE}"
+
 # Environment Variables Setup:
 # ---------------------------
 # Create a .env file or export environment variables:
@@ -55,6 +65,8 @@ providers:
 #   export ZAI_API_KEY="your-id.your-secret"
 #   export KIMI_AUTH_TOKEN="your-kimi-auth-token"
 #   export CLAUDE_SESSION_KEY="your-claude-session-key"
+#   export OPENCODE_GO_WORKSPACE_ID="wrk_..."
+#   export OPENCODE_GO_AUTH_COOKIE="Fe26.2..."
 #
 # Codex uses OAuth tokens from ~/.codex/auth.json (no env vars needed)
 # Or use a .env file and load it with direnv or similar.
@@ -121,3 +133,9 @@ providers:
 #     cookies:
 #       "claude.ai":
 #         "sessionKey": "${CLAUDE_SESSION_KEY}"
+#   opencodego:
+#     enabled: false
+#     workspace_id: "${OPENCODE_GO_WORKSPACE_ID}"
+#     cookies:
+#       "opencode.ai":
+#         "auth": "${OPENCODE_GO_AUTH_COOKIE}"

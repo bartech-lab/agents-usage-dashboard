@@ -64,22 +64,16 @@ func (c *Credits) UnmarshalJSON(data []byte) error {
 
 // ProviderData holds usage data for a specific AI provider
 type ProviderData struct {
-	Status         string        `json:"status"`
-	Plan           string        `json:"plan,omitempty"`
-	LimitReached   bool          `json:"limit_reached,omitempty"` // Codex only
-	Session        *UsageWindow  `json:"session,omitempty"`
-	Weekly         *UsageWindow  `json:"weekly,omitempty"`
-	Models         *ClaudeModels `json:"models,omitempty"`  // Claude only
-	Credits        *Credits      `json:"credits,omitempty"` // Codex only
-	DailyBreakdown []DailyEntry  `json:"daily_breakdown,omitempty"`
-	Error          string        `json:"error,omitempty"`
-	LastSuccess    string        `json:"last_success,omitempty"`
-}
-
-// DailyEntry represents a single day's usage data
-type DailyEntry struct {
-	Day   string  `json:"day"`
-	Value float64 `json:"value"`
+	Status       string        `json:"status"`
+	Plan         string        `json:"plan,omitempty"`
+	LimitReached bool          `json:"limit_reached,omitempty"` // Codex only
+	Session      *UsageWindow  `json:"session,omitempty"`
+	Weekly       *UsageWindow  `json:"weekly,omitempty"`
+	Monthly      *UsageWindow  `json:"monthly,omitempty"`
+	Models       *ClaudeModels `json:"models,omitempty"`  // Claude only
+	Credits      *Credits      `json:"credits,omitempty"` // Codex only
+	Error        string        `json:"error,omitempty"`
+	LastSuccess  string        `json:"last_success,omitempty"`
 }
 
 // CacheData holds cached data for all providers
@@ -88,6 +82,7 @@ type CacheData struct {
 	Kimi          *ProviderData `json:"kimi"`
 	Codex         *ProviderData `json:"codex"`
 	Claude        *ProviderData `json:"claude"`
+	OpenCodeGo    *ProviderData `json:"opencodego"`
 	LastFetch     string        `json:"last_fetch"`
 	NextRefreshAt string        `json:"next_refresh_at"`
 }
