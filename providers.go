@@ -675,8 +675,13 @@ func fetchOpenCodeGo(client tls_client.HttpClient, workspaceID string, cookiesBy
 	}
 	body := string(bodyBytes)
 
+	if strings.Contains(body, "<title>OpenAuth</title>") || strings.Contains(body, "openauth.js.org") {
+		return &ProviderData{Status: "error", Error: "OpenCode auth cookie expired or invalid (got OpenAuth login page)"}, nil
+	}
+
 	progressMatches := openCodeGoProgressPattern.FindAllStringSubmatch(body, -1)
 	if len(progressMatches) < 3 {
+		log.Printf("DEBUG OpenCode Go parser failed: got %d progress matches. HTML snippet (first 2000 chars): %s", len(progressMatches), truncate(body, 2000))
 		return nil, fmt.Errorf("parse OpenCode Go usage: expected 3 usage bars, got %d", len(progressMatches))
 	}
 
@@ -750,6 +755,13 @@ func parseOpenCodeGoDuration(input string) int {
 		return 0
 	}
 	return total
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 func pickPercent(usedPercent *float64, usagePercent *float64) float64 {

@@ -183,9 +183,13 @@ func validateConfig(config *Config) error {
 
 // Save updates only provider enabled flags in the YAML file,
 // preserving all other content including ${VAR} placeholders and comments.
+// If the config file doesn't exist (e.g. running from env vars only), this is a no-op.
 func (c *Config) Save(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return fmt.Errorf("read config file: %w", err)
 	}
 	content := string(data)
