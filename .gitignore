@@ -12,6 +12,7 @@ config.yaml
 *.out
 go.work
 agents-dashboard
+agents-dashboard.service
 
 # Docker
 *.log
